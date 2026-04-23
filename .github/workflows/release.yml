@@ -74,13 +74,13 @@ jobs:
         run: |
           $version = "${{ steps.version.outputs.version }}"
           $author = "${{ steps.author.outputs.name }}"
-          $distDir = "dist\ScreenHop"
-          $outputDir = "dist\installer"
+          $distDir = Join-Path $pwd "dist\ScreenHop"
+          $outputDir = Join-Path $pwd "dist\installer"
           
           # Create output directory
           New-Item -ItemType Directory -Force -Path $outputDir
           
-          # Run Inno Setup with version and author parameters
+          # Run Inno Setup with version and author parameters (use absolute paths)
           iscc "/DAppVersion=$version" "/DAppPublisher=$author" "/DDistDir=$distDir" "/DOutputDir=$outputDir" "installer\screenhop_win7.iss"
         shell: pwsh
 

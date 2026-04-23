@@ -1,0 +1,280 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      # Only trigger on tags ending with -prod (e.g., v1.0.0-prod, v2.1.3-prod)
+      - 'v*-prod'
+
+env:
+  PYTHON_VERSION: '3.11'  # Use 3.11 for modern Windows; change to 3.8 for Windows 7 support
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          # Get the tag name (e.g., v1.0.0-prod)
+          $tag = "${{ github.ref_name }}"
+          # Remove 'v' prefix and '-prod' suffix to get clean version (e.g., 1.0.0)
+          $version = $tag -replace '^v', '' -replace '-prod$', ''
+          Write-Host "Version: $version"
+          Write-Output "version=$version" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Get author info
+        id: author
+        run: |
+          $authorName = "${{ github.event.repository.owner.login }}"
+          $authorEmail = "noreply@github.com"
+          Write-Output "name=$authorName" >> $env:GITHUB_OUTPUT
+          Write-Output "email=$authorEmail" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Update version in __init__.py
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $initFile = "src/browser_move/__init__.py"
+          $content = Get-Content $initFile -Raw
+          $newContent = $content -replace "__version__ = \"[^\"]+\"", "__version__ = \"$version\""
+          Set-Content $initFile $newContent -Encoding UTF8
+          Write-Host "Updated __init__.py to version $version"
+        shell: pwsh
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --noconfirm --clean screenhop.spec
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup -y
+
+      - name: Build installer with Inno Setup
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $author = "${{ steps.author.outputs.name }}"
+          $distDir = "dist\ScreenHop"
+          $outputDir = "dist\installer"
+          
+          # Create output directory
+          New-Item -ItemType Directory -Force -Path $outputDir
+          
+          # Run Inno Setup with version and author parameters
+          iscc "/DAppVersion=$version" "/DAppPublisher=$author" "/DDistDir=$distDir" "/DOutputDir=$outputDir" "installer\screenhop_win7.iss"
+        shell: pwsh
+
+      - name: List build artifacts
+        run: |
+          Write-Host "=== PyInstaller Output ==="
+          Get-ChildItem -Path "dist\ScreenHop" -Recurse | Select-Object FullName
+          Write-Host "=== Installer Output ==="
+          Get-ChildItem -Path "dist\installer" | Select-Object FullName
+        shell: pwsh
+
+      - name: Create ZIP archive of portable exe
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          Compress-Archive -Path "dist\ScreenHop\*" -DestinationPath "dist\ScreenHop-$version-portable.zip"
+        shell: pwsh
+
+      - name: Get previous release tag
+        id: prev_tag
+        run: |
+          $currentTag = "${{ github.ref_name }}"
+          # Find the previous -prod tag (sorted by creation date, newest first)
+          $prevTag = git tag --list "v*-prod" --sort=-creatordate | Select-Object -Skip 1 -First 1
+          if (-not $prevTag) {
+            $prevTag = ""
+            Write-Host "No previous release tag found - this is the first release"
+          } else {
+            Write-Host "Previous release tag: $prevTag"
+          }
+          Write-Output "tag=$prevTag" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          $currentTag = "${{ github.ref_name }}"
+          $prevTag = "${{ steps.prev_tag.outputs.tag }}"
+          $version = "${{ steps.version.outputs.version }}"
+          
+          # Get commits between previous tag and current tag (or all commits if first release)
+          if ($prevTag) {
+            $commits = git log "$prevTag..HEAD" --pretty=format:"%s|%h|%an" --no-merges
+          } else {
+            $commits = git log --pretty=format:"%s|%h|%an" --no-merges -20
+          }
+          
+          # Parse and categorize commits
+          $features = @()
+          $fixes = @()
+          $refactors = @()
+          $docs = @()
+          $others = @()
+          
+          foreach ($line in $commits) {
+            if (-not $line) { continue }
+            $parts = $line -split "\|"
+            $message = $parts[0]
+            $hash = $parts[1]
+            $author = $parts[2]
+            
+            $entry = "- $message ([$hash](https://github.com/${{ github.repository }}/commit/$hash)) - @$author"
+            
+            if ($message -match "^(feat|feature|add)") {
+              $features += $entry
+            } elseif ($message -match "^(fix|bugfix|patch)") {
+              $fixes += $entry
+            } elseif ($message -match "^(refactor|refact|improve|optimize|perf)") {
+              $refactors += $entry
+            } elseif ($message -match "^(docs|doc|readme|comment)") {
+              $docs += $entry
+            } else {
+              $others += $entry
+            }
+          }
+          
+          # Build changelog markdown
+          $changelog = ""
+          if ($features.Count -gt 0) {
+            $changelog += "`n### New Features`n"
+            $changelog += ($features -join "`n") + "`n"
+          }
+          if ($fixes.Count -gt 0) {
+            $changelog += "`n### Bug Fixes`n"
+            $changelog += ($fixes -join "`n") + "`n"
+          }
+          if ($refactors.Count -gt 0) {
+            $changelog += "`n### Improvements`n"
+            $changelog += ($refactors -join "`n") + "`n"
+          }
+          if ($docs.Count -gt 0) {
+            $changelog += "`n### Documentation`n"
+            $changelog += ($docs -join "`n") + "`n"
+          }
+          if ($others.Count -gt 0) {
+            $changelog += "`n### Other Changes`n"
+            $changelog += ($others -join "`n") + "`n"
+          }
+          
+          if (-not $changelog) {
+            $changelog = "`n### Changes`n- Initial release`n"
+          }
+          
+          Write-Host "Changelog generated:"
+          Write-Host $changelog
+          
+          # Save changelog to file
+          $changelog | Out-File -FilePath "changelog.md" -Encoding UTF8
+        shell: pwsh
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $tag = "${{ github.ref_name }}"
+          $author = "${{ steps.author.outputs.name }}"
+          $prevTag = "${{ steps.prev_tag.outputs.tag }}"
+          
+          # Read changelog
+          $changelog = Get-Content "changelog.md" -Raw
+          
+          # Build full release notes
+          $notes = @"
+          ## ScreenHop v$version
+
+          **Release Tag:** $tag
+          **Author:** $author
+          
+          $changelog
+
+          ### Downloads
+
+          - **Installer (Recommended):** ``ScreenHop-$version-win7plus.exe``
+            - Windows 7 SP1+ compatible
+            - Per-user installation (no admin required)
+            - Creates desktop shortcut option
+
+          - **Portable:** ``ScreenHop-$version-portable.zip``
+            - No installation required
+            - Extract and run ``ScreenHop.exe``
+
+          ### Installation Notes
+
+          1. Download the installer or portable ZIP
+          2. For installer: Run ``ScreenHop-$version-win7plus.exe``
+          3. For portable: Extract ZIP to any folder and run ``ScreenHop.exe``
+
+          ### Requirements
+
+          - Windows 7 SP1 or later
+          - Firefox, Chrome, or Edge browser installed
+
+          ---
+          **Publisher:** $author
+          "@
+          
+          $notes | Out-File -FilePath "release_notes.md" -Encoding UTF8
+          Write-Host "Release notes generated with changelog"
+        shell: pwsh
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ScreenHop v${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/installer/ScreenHop-${{ steps.version.outputs.version }}-win7plus.exe
+            dist/ScreenHop-${{ steps.version.outputs.version }}-portable.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Verification job - runs after release to confirm artifacts are uploaded
+  verify:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Verify release assets
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: process.env.TAG_NAME
+            });
+            
+            const assets = release.data.assets;
+            console.log('Release assets:', assets.map(a => a.name));
+            
+            if (assets.length < 2) {
+              throw new Error('Expected at least 2 assets (installer and portable zip)');
+            }
+            
+            console.log('✓ Release verified successfully');
+        env:
+          TAG_NAME: ${{ github.ref_name }}

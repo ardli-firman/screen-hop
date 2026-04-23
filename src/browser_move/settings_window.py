@@ -16,6 +16,23 @@ from src.browser_move.shortcuts import (
     is_in_startup,
     remove_all_startup_shortcuts,
 )
+from src.browser_move.ui_theme import (
+    ACCENT,
+    ACCENT_HOVER,
+    BORDER,
+    DANGER,
+    MODAL_GEOMETRY,
+    MODAL_MIN_SIZE,
+    SUCCESS,
+    SURFACE,
+    SURFACE_ALT,
+    TEXT_MUTED,
+    WARN,
+    apply_base_theme,
+    font,
+    style_card,
+    style_panel,
+)
 
 
 class SettingsWindow:
@@ -28,149 +45,142 @@ class SettingsWindow:
         preset_names: list[str] | None = None,
         selected_preset: str | None = None,
     ):
-        """Initialize settings window.
-
-        Args:
-            parent: Parent CTk window
-            on_apply: Optional callback called with settings dict after Apply
-        """
         self.parent = parent
         self.on_apply = on_apply
         self.config = load_config()
         self.preset_names = self._resolve_preset_names(preset_names)
-        self._selected_shortcut_preset = self._resolve_initial_shortcut_preset(
-            selected_preset
-        )
+        self._selected_shortcut_preset = self._resolve_initial_shortcut_preset(selected_preset)
         self._startup_state = self._in_startup(self._selected_shortcut_preset or None)
         self.setup_ui()
 
     def setup_ui(self) -> None:
-        """Build the settings UI."""
         self.window = ctk.CTkToplevel(self.parent)
         self.window.title(f"{APP_NAME} Settings")
-        self.window.geometry("560x620")
-        self.window.minsize(520, 560)
+        self.window.geometry(MODAL_GEOMETRY)
+        self.window.minsize(*MODAL_MIN_SIZE)
         self.window.resizable(True, True)
+        self.window.configure(fg_color=SURFACE)
         self.window.grab_set()
         self.window.transient(self.parent)
         self._center_window()
 
-        main_frame = ctk.CTkFrame(self.window)
-        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        shell = ctk.CTkFrame(self.window, fg_color="transparent")
+        shell.pack(fill="both", expand=True, padx=18, pady=18)
 
-        header_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        header_frame.pack(fill="x", pady=(4, 12))
+        main_card = ctk.CTkFrame(shell)
+        style_panel(main_card)
+        main_card.pack(fill="both", expand=True)
 
-        title_label = ctk.CTkLabel(
-            header_frame,
+        header = ctk.CTkFrame(main_card, fg_color="transparent")
+        header.pack(fill="x", padx=22, pady=(20, 14))
+
+        ctk.CTkLabel(
+            header,
             text=f"{APP_NAME} Settings",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=font(20, "bold"),
             anchor="w",
-        )
-        title_label.pack(fill="x")
-
-        subtitle_label = ctk.CTkLabel(
-            header_frame,
-            text="Customize app behavior, startup, and shortcuts.",
-            font=ctk.CTkFont(size=12),
-            text_color="gray60",
+        ).pack(fill="x")
+        ctk.CTkLabel(
+            header,
+            text="Tune the control panel, close behavior, and preset-based shortcuts in one place.",
+            font=font(12),
+            text_color=TEXT_MUTED,
             anchor="w",
-        )
-        subtitle_label.pack(fill="x", pady=(2, 0))
+            justify="left",
+            wraplength=620,
+        ).pack(fill="x", pady=(4, 0))
 
-        content_frame = ctk.CTkScrollableFrame(main_frame, fg_color="transparent")
-        content_frame.pack(fill="both", expand=True, padx=4, pady=(0, 8))
+        content = ctk.CTkScrollableFrame(main_card, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=18, pady=(0, 12))
 
         appearance_body = self._create_section(
-            content_frame,
-            title="Appearance",
-            description="Set application theme and close-window behavior.",
+            content,
+            title="Workspace Feel",
+            description="Adjust theme and what happens when you close the main window.",
         )
 
-        theme_label = ctk.CTkLabel(
-            appearance_body,
-            text="Theme",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            anchor="w",
+        ctk.CTkLabel(appearance_body, text="Theme", font=font(12, "bold"), anchor="w").grid(
+            row=0, column=0, sticky="w", padx=(0, 12), pady=(0, 12)
         )
-        theme_label.grid(row=0, column=0, sticky="w", padx=(0, 12), pady=(0, 12))
-
         self.theme_combo = ctk.CTkComboBox(
             appearance_body,
             values=["Dark", "Light", "System"],
             state="readonly",
-            height=36,
-            width=170,
+            height=38,
+            corner_radius=14,
+            border_color=BORDER,
+            font=font(12, "bold"),
         )
         self.theme_combo.set(self.config.get("theme", "System"))
         self.theme_combo.grid(row=0, column=1, sticky="ew", pady=(0, 12))
 
-        close_label = ctk.CTkLabel(
+        ctk.CTkLabel(
             appearance_body,
             text="Close Button",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=font(12, "bold"),
             anchor="w",
-        )
-        close_label.grid(row=1, column=0, sticky="w", padx=(0, 12))
-
+        ).grid(row=1, column=0, sticky="w", padx=(0, 12))
         self.close_combo = ctk.CTkComboBox(
             appearance_body,
             values=["Exit", "Minimize to Tray"],
             state="readonly",
-            height=36,
-            width=170,
+            height=38,
+            corner_radius=14,
+            border_color=BORDER,
+            font=font(12, "bold"),
         )
         self.close_combo.set(self.config.get("close_behavior", "Minimize to Tray"))
         self.close_combo.grid(row=1, column=1, sticky="ew")
 
         startup_body = self._create_section(
-            content_frame,
-            title="Startup",
-            description="Auto-run the selected preset when Windows starts.",
+            content,
+            title="Startup Behavior",
+            description="Let Windows start one preset automatically using a shortcut in the Startup folder.",
         )
 
         self.auto_start_var = ctk.BooleanVar(value=self._startup_state)
         self.auto_start_check = ctk.CTkCheckBox(
             startup_body,
-            text="Auto-run selected preset on startup",
+            text="Auto-run selected preset on Windows startup",
             variable=self.auto_start_var,
-            font=ctk.CTkFont(size=13),
+            font=font(12, "bold"),
             checkbox_width=20,
             checkbox_height=20,
         )
         self.auto_start_check.grid(row=0, column=0, columnspan=2, sticky="w")
 
-        startup_hint = ctk.CTkLabel(
+        ctk.CTkLabel(
             startup_body,
-            text="Uses Preset Target from the Shortcuts section.",
-            font=ctk.CTkFont(size=11),
-            text_color="gray60",
+            text="Startup uses the preset selected in Shortcut Target below.",
+            font=font(11),
+            text_color=TEXT_MUTED,
             anchor="w",
-        )
-        startup_hint.grid(row=1, column=0, columnspan=2, sticky="w", pady=(2, 0))
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
 
         shortcuts_body = self._create_section(
-            content_frame,
-            title="Shortcuts",
-            description="Shortcut target must be a preset so click/startup can run it directly.",
+            content,
+            title="Shortcut Target",
+            description="Desktop and Startup shortcuts both launch a preset by name so they stay in sync with the tray menu.",
         )
 
-        shortcut_target_label = ctk.CTkLabel(
+        ctk.CTkLabel(
             shortcuts_body,
-            text="Preset Target",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            text="Preset",
+            font=font(12, "bold"),
             anchor="w",
-        )
-        shortcut_target_label.grid(row=0, column=0, sticky="w", padx=(0, 10), pady=(0, 12))
+        ).grid(row=0, column=0, sticky="w", padx=(0, 12), pady=(0, 12))
 
-        shortcut_combo_values = self.preset_names if self.preset_names else ["No preset available"]
-        shortcut_combo_state = "readonly" if self.preset_names else "disabled"
+        shortcut_values = self.preset_names if self.preset_names else ["No preset available"]
+        shortcut_state = "readonly" if self.preset_names else "disabled"
         self.shortcut_preset_combo = ctk.CTkComboBox(
             shortcuts_body,
-            values=shortcut_combo_values,
-            state=shortcut_combo_state,
+            values=shortcut_values,
+            state=shortcut_state,
             command=self._on_shortcut_preset_changed,
-            height=36,
+            height=38,
+            corner_radius=14,
+            border_color=BORDER,
+            font=font(12, "bold"),
         )
         self.shortcut_preset_combo.grid(row=0, column=1, sticky="ew", pady=(0, 12))
         if self._selected_shortcut_preset:
@@ -178,18 +188,17 @@ class SettingsWindow:
         else:
             self.shortcut_preset_combo.set("No preset available")
 
-        startup_status_label = ctk.CTkLabel(
+        ctk.CTkLabel(
             shortcuts_body,
-            text="Startup Shortcut Status",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            text="Startup Status",
+            font=font(12, "bold"),
             anchor="w",
-        )
-        startup_status_label.grid(row=1, column=0, sticky="w", padx=(0, 10), pady=(0, 12))
+        ).grid(row=1, column=0, sticky="w", padx=(0, 12), pady=(0, 12))
 
         self.startup_status_value = ctk.CTkLabel(
             shortcuts_body,
             text="Checking...",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=font(12, "bold"),
             anchor="e",
         )
         self.startup_status_value.grid(row=1, column=1, sticky="e", pady=(0, 12))
@@ -198,8 +207,13 @@ class SettingsWindow:
             shortcuts_body,
             text="Create Desktop Shortcut",
             command=self.create_desktop_shortcut,
-            height=38,
-            width=220,
+            height=40,
+            corner_radius=14,
+            fg_color=SURFACE_ALT,
+            hover_color=SURFACE,
+            border_width=1,
+            border_color=BORDER,
+            font=font(12, "bold"),
         )
         desktop_btn.grid(row=2, column=0, sticky="ew", padx=(0, 8))
 
@@ -207,39 +221,48 @@ class SettingsWindow:
             shortcuts_body,
             text="Add to Startup",
             command=self.toggle_startup,
-            height=38,
-            width=220,
+            height=40,
+            corner_radius=14,
+            fg_color=ACCENT,
+            hover_color=ACCENT_HOVER,
+            font=font(12, "bold"),
         )
         self.startup_btn.grid(row=2, column=1, sticky="ew", padx=(8, 0))
 
-        footer_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        footer_frame.pack(fill="x", pady=(4, 0))
+        footer = ctk.CTkFrame(main_card, fg_color="transparent")
+        footer.pack(fill="x", padx=22, pady=(0, 20))
 
         cancel_btn = ctk.CTkButton(
-            footer_frame,
+            footer,
             text="Cancel",
             command=self.window.destroy,
-            height=40,
-            width=120,
-            fg_color="transparent",
-            border_width=2,
+            height=42,
+            width=130,
+            corner_radius=14,
+            fg_color=SURFACE_ALT,
+            hover_color=SURFACE,
+            border_width=1,
+            border_color=BORDER,
+            font=font(13, "bold"),
         )
         cancel_btn.pack(side="right", padx=(0, 10))
 
         apply_btn = ctk.CTkButton(
-            footer_frame,
+            footer,
             text="Apply",
             command=self.apply_settings,
-            height=40,
+            height=42,
             width=150,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            corner_radius=14,
+            fg_color=ACCENT,
+            hover_color=ACCENT_HOVER,
+            font=font(13, "bold"),
         )
         apply_btn.pack(side="right")
 
         self._refresh_startup_ui(sync_checkbox=True)
 
     def _resolve_preset_names(self, preset_names: list[str] | None) -> list[str]:
-        """Resolve preset names from argument or config."""
         names = preset_names
         if names is None:
             names = [
@@ -253,12 +276,10 @@ class SettingsWindow:
             value = str(name).strip()
             if value and value not in cleaned:
                 cleaned.append(value)
-
         return cleaned
 
     def _resolve_initial_shortcut_preset(self, selected_preset: str | None) -> str:
-        """Choose initial preset target for shortcut and startup actions."""
-        selected = (selected_preset or "").strip()
+        selected = str(selected_preset or "").strip()
         saved = str(self.config.get("shortcut_preset", "") or "").strip()
 
         if selected and selected in self.preset_names:
@@ -270,7 +291,6 @@ class SettingsWindow:
         return ""
 
     def _get_selected_preset(self) -> str:
-        """Get currently selected preset from shortcut target dropdown."""
         if not hasattr(self, "shortcut_preset_combo"):
             return self._selected_shortcut_preset
 
@@ -280,7 +300,6 @@ class SettingsWindow:
         return ""
 
     def _on_shortcut_preset_changed(self, _choice: str) -> None:
-        """Refresh startup controls when target preset changes."""
         self._selected_shortcut_preset = self._get_selected_preset()
         self._refresh_startup_ui(sync_checkbox=True)
 
@@ -290,36 +309,31 @@ class SettingsWindow:
         title: str,
         description: str,
     ) -> ctk.CTkFrame:
-        """Create a settings section with heading and content body."""
-        section_frame = ctk.CTkFrame(parent, corner_radius=12)
-        section_frame.pack(fill="x", pady=(0, 12))
+        section = ctk.CTkFrame(parent)
+        style_card(section)
+        section.pack(fill="x", pady=(0, 12))
 
-        title_label = ctk.CTkLabel(
-            section_frame,
-            text=title,
-            font=ctk.CTkFont(size=15, weight="bold"),
-            anchor="w",
+        ctk.CTkLabel(section, text=title, font=font(15, "bold"), anchor="w").pack(
+            fill="x", padx=16, pady=(14, 2)
         )
-        title_label.pack(fill="x", padx=16, pady=(14, 2))
-
-        description_label = ctk.CTkLabel(
-            section_frame,
+        ctk.CTkLabel(
+            section,
             text=description,
-            font=ctk.CTkFont(size=11),
-            text_color="gray60",
+            font=font(11),
+            text_color=TEXT_MUTED,
             anchor="w",
-        )
-        description_label.pack(fill="x", padx=16, pady=(0, 12))
+            justify="left",
+            wraplength=620,
+        ).pack(fill="x", padx=16, pady=(0, 12))
 
-        body = ctk.CTkFrame(section_frame, fg_color="transparent")
+        body = ctk.CTkFrame(section, fg_color="transparent")
         body.pack(fill="x", padx=16, pady=(0, 14))
         body.grid_columnconfigure(1, weight=1)
         return body
 
     def _center_window(self) -> None:
-        """Center settings window over parent."""
-        window_width = 560
-        window_height = 620
+        window_width = 760
+        window_height = 680
 
         self.parent.update_idletasks()
         parent_width = self.parent.winfo_width()
@@ -336,12 +350,9 @@ class SettingsWindow:
             x = parent_x + (parent_width - window_width) // 2
             y = parent_y + (parent_height - window_height) // 2
 
-        x = max(0, x)
-        y = max(0, y)
-        self.window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        self.window.geometry(f"{window_width}x{window_height}+{max(0, x)}+{max(0, y)}")
 
     def _in_startup(self, preset_name: str | None = None) -> bool:
-        """Check if app is in Windows startup folder."""
         try:
             return is_in_startup(preset_name)
         except Exception as exc:
@@ -349,19 +360,17 @@ class SettingsWindow:
             return False
 
     def _refresh_startup_ui(self, sync_checkbox: bool = False) -> None:
-        """Refresh startup status text, startup button text, and optional checkbox."""
         preset_name = self._get_selected_preset()
         if not preset_name:
             self._startup_state = False
-            self.startup_status_value.configure(text="No preset selected", text_color="gray60")
+            self.startup_status_value.configure(text="No preset selected", text_color=TEXT_MUTED)
             self.startup_btn.configure(
                 state="disabled",
                 text="Add to Startup",
-                fg_color="gray50",
-                hover_color="gray45",
+                fg_color=("#cfd9e6", "#233045"),
+                hover_color=("#cfd9e6", "#233045"),
             )
             self.auto_start_check.configure(state="disabled")
-
             if sync_checkbox:
                 self.auto_start_var.set(False)
             return
@@ -372,35 +381,19 @@ class SettingsWindow:
         has_other_startup = bool(get_all_startup_shortcuts()) and not self._startup_state
 
         if self._startup_state:
-            self.startup_status_value.configure(text="Enabled", text_color="#2e8b57")
-            self.startup_btn.configure(
-                text="Remove from Startup",
-                fg_color="#d97706",
-                hover_color="#b45309",
-            )
+            self.startup_status_value.configure(text="Enabled", text_color=SUCCESS)
+            self.startup_btn.configure(text="Remove from Startup", fg_color=WARN, hover_color=("#b5680c", "#d97706"))
         elif has_other_startup:
-            self.startup_status_value.configure(
-                text="Enabled for other preset",
-                text_color="#d97706",
-            )
-            self.startup_btn.configure(
-                text="Replace Startup Preset",
-                fg_color="#2563eb",
-                hover_color="#1d4ed8",
-            )
+            self.startup_status_value.configure(text="Enabled for other preset", text_color=WARN)
+            self.startup_btn.configure(text="Replace Startup Preset", fg_color=ACCENT, hover_color=ACCENT_HOVER)
         else:
-            self.startup_status_value.configure(text="Disabled", text_color="gray60")
-            self.startup_btn.configure(
-                text="Add to Startup",
-                fg_color="#2563eb",
-                hover_color="#1d4ed8",
-            )
+            self.startup_status_value.configure(text="Disabled", text_color=TEXT_MUTED)
+            self.startup_btn.configure(text="Add to Startup", fg_color=ACCENT, hover_color=ACCENT_HOVER)
 
         if sync_checkbox:
             self.auto_start_var.set(self._startup_state)
 
     def _set_startup_state(self, enabled: bool) -> bool:
-        """Enable or disable startup shortcut."""
         preset_name = self._get_selected_preset()
         if not preset_name:
             return False
@@ -422,14 +415,9 @@ class SettingsWindow:
         return self._startup_state == enabled
 
     def create_desktop_shortcut(self) -> None:
-        """Create desktop shortcut for the application."""
         preset_name = self._get_selected_preset()
         if not preset_name:
-            messagebox.showerror(
-                "Desktop Shortcut",
-                "Please select a preset target first.",
-                parent=self.window,
-            )
+            messagebox.showerror("Desktop Shortcut", "Select a preset target first.", parent=self.window)
             return
 
         try:
@@ -441,7 +429,7 @@ class SettingsWindow:
         if success:
             messagebox.showinfo(
                 "Desktop Shortcut",
-                f"Shortcut for preset '{preset_name}' created on Desktop. Existing ScreenHop shortcut was replaced automatically.",
+                f"Shortcut for preset '{preset_name}' was created on the Desktop.",
                 parent=self.window,
             )
             return
@@ -453,14 +441,9 @@ class SettingsWindow:
         )
 
     def toggle_startup(self) -> None:
-        """Toggle app in Windows startup folder immediately."""
         preset_name = self._get_selected_preset()
         if not preset_name:
-            messagebox.showerror(
-                "Startup",
-                "Please select a preset target first.",
-                parent=self.window,
-            )
+            messagebox.showerror("Startup", "Select a preset target first.", parent=self.window)
             return
 
         selected_already_enabled = self._in_startup(preset_name)
@@ -469,7 +452,7 @@ class SettingsWindow:
         success = self._set_startup_state(target_enabled)
 
         if not success:
-            action_text = "add to" if target_enabled else "remove from"
+            action_text = "enable" if target_enabled else "disable"
             messagebox.showerror(
                 "Startup",
                 f"Failed to {action_text} startup for preset '{preset_name}'.",
@@ -488,16 +471,15 @@ class SettingsWindow:
         )
 
     def apply_settings(self) -> None:
-        """Save settings to config and trigger callback."""
         selected_preset = self._get_selected_preset()
         desired_auto_start = self.auto_start_var.get()
         if desired_auto_start and not selected_preset:
-            messagebox.showerror(
-                "Startup",
-                "Select a preset target before enabling startup.",
-                parent=self.window,
-            )
+            messagebox.showerror("Startup", "Select a preset target before enabling startup.", parent=self.window)
             return
+
+        if not selected_preset:
+            remove_all_startup_shortcuts()
+            self._startup_state = False
 
         if selected_preset and not self._set_startup_state(desired_auto_start):
             action_text = "enable" if desired_auto_start else "disable"
@@ -518,19 +500,12 @@ class SettingsWindow:
 
         latest_config = load_config()
         latest_config.update(settings)
-        saved = save_config(latest_config)
-        if not saved:
-            messagebox.showerror(
-                "Settings",
-                "Failed to save configuration.",
-                parent=self.window,
-            )
+        if not save_config(latest_config):
+            messagebox.showerror("Settings", "Failed to save configuration.", parent=self.window)
             return
 
         self.config = latest_config
-        ctk.set_appearance_mode(settings["theme"])
-
-        print(f"[settings] Settings applied: {settings}")
+        apply_base_theme(settings["theme"])
 
         if self.on_apply:
             self.on_apply(settings)

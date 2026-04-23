@@ -163,9 +163,6 @@ def get_monitor_display_name(monitor: Any, index: int) -> str:
 
 def get_display_choices() -> List[Tuple[str, str]]:
     """Return available target displays as list of (display_id, display_name)."""
-    if not has_multiple_displays():
-        return []
-
     all_displays = get_displays()
     if not all_displays:
         return []
@@ -206,9 +203,6 @@ def resolve_display_for_preset(preset: dict) -> Tuple[Optional[Any], str, bool]:
     Returns:
         Tuple of (display, display_name, used_fallback)
     """
-    if not has_multiple_displays():
-        return None, "", False
-
     displays = get_displays()
     if not displays:
         return None, "", False

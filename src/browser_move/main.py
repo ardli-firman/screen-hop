@@ -5,33 +5,21 @@ from __future__ import annotations
 import argparse
 import sys
 import time
-
-import customtkinter as ctk
+from typing import Any, Callable
 
 from src.browser_move import APP_NAME
+from src.browser_move.config import load_config
 from src.browser_move.dpi import setup_dpi_awareness
+from src.browser_move.preset_runner import execute_preset
 from src.browser_move.single_instance import (
     check_single_instance,
     show_already_running_message,
 )
-from src.browser_move.app import MainWindow
-from src.browser_move.tray import TrayManager
-from src.browser_move.config import load_config
-from src.browser_move.browsers import launch_browser
-from src.browser_move.window_mover import (
-    find_browser_window,
-    move_window_to_monitor,
-    list_browser_windows,
-)
-from src.browser_move.monitors import resolve_display_for_preset
+from src.browser_move.ui_theme import apply_base_theme
 
 
 def main() -> int:
-    """Main entry point for ScreenHop.
-
-    Returns:
-        Exit code: 0 for success, 1 for error/already running
-    """
+    """Main entry point for ScreenHop."""
     setup_dpi_awareness()
 
     if not check_single_instance():
@@ -39,7 +27,7 @@ def main() -> int:
         return 1
 
     parser = argparse.ArgumentParser(
-        description=f"{APP_NAME} - Launch and move browsers to a selected monitor"
+        description=f"{APP_NAME} - launch and move Windows apps to a selected display"
     )
     parser.add_argument(
         "--preset",
@@ -58,8 +46,6 @@ def main() -> int:
         if not args.headless:
             return 0 if success else 1
 
-    config = load_config()
-
     if args.headless:
         run_headless()
         return 0
@@ -68,15 +54,19 @@ def main() -> int:
     return 0
 
 
+def find_preset_by_name(config: dict, name: str) -> dict | None:
+    for preset in config.get("presets", []):
+        if preset.get("name") == name:
+            return preset
+    return None
+
+
+def _cli_reporter(_status_type: str, message: str) -> None:
+    print(message)
+
+
 def run_preset_direct(preset_name: str) -> bool:
-    """Execute preset directly without GUI.
-
-    Args:
-        preset_name: Name of preset to run
-
-    Returns:
-        True if successful, False otherwise
-    """
+    """Execute preset directly without GUI."""
     config = load_config()
     preset = find_preset_by_name(config, preset_name)
 
@@ -84,76 +74,23 @@ def run_preset_direct(preset_name: str) -> bool:
         print(f"Preset '{preset_name}' not found")
         return False
 
-    target_display, target_label, used_fallback = resolve_display_for_preset(preset)
-    if not target_display:
-        print("No multiple display detected (set Display mode to Extend)")
-        return False
-
-    if used_fallback:
-        print(f"Saved display not found. Using {target_label}.")
-
-    existing_hwnds = set(list_browser_windows(preset["browser_type"]))
-
-    proc = launch_browser(
-        preset["browser_type"],
-        preset["url"],
-        preset.get("kiosk_mode", False),
-        preset.get("browser_path"),
-    )
-
-    if not proc:
-        print("Failed to launch browser")
-        return False
-
-    hwnd = find_browser_window(
-        preset["browser_type"], timeout=6.0, exclude_hwnds=existing_hwnds
-    )
-    if not hwnd:
-        hwnd = find_browser_window(preset["browser_type"], timeout=4.0)
-    if hwnd:
-        moved = move_window_to_monitor(hwnd, target_display)
-        if moved:
-            print(f"Browser moved to {target_label}")
-            return True
-        for alt_hwnd in list_browser_windows(preset["browser_type"]):
-            if alt_hwnd == hwnd:
-                continue
-            if move_window_to_monitor(alt_hwnd, target_display):
-                print(f"Browser moved to {target_label}")
-                return True
-
-        print(f"Failed to move browser to {target_label}")
-        return False
-
-    print("Failed to find browser window")
-    return False
-
-
-def find_preset_by_name(config: dict, name: str) -> dict | None:
-    """Find preset by name in config.
-
-    Args:
-        config: Configuration dictionary
-        name: Preset name to search for
-
-    Returns:
-        Preset dict if found, None otherwise
-    """
-    for preset in config.get("presets", []):
-        if preset.get("name") == name:
-            return preset
-    return None
+    return execute_preset(preset, reporter=_cli_reporter)
 
 
 def run_gui() -> None:
     """Run in normal GUI mode with tray and window."""
-    ctk.set_appearance_mode("System")
-    ctk.set_default_color_theme("blue")
+    import customtkinter as ctk
+
+    from src.browser_move.app import MainWindow
+    from src.browser_move.tray import TrayManager
+
+    config = load_config()
+    apply_base_theme(config.get("theme", "System"))
 
     root = ctk.CTk()
     app = MainWindow(root)
 
-    callbacks = {
+    callbacks: dict[str, Callable] = {
         "show_window": app.show_window,
         "run_preset": lambda preset: app.run_preset_by_name(preset.get("name")),
         "open_settings": app.open_settings,
@@ -170,19 +107,18 @@ def run_gui() -> None:
         tray.stop()
 
 
-def on_exit(root: ctk.CTk, tray: TrayManager) -> None:
-    """Handle application exit.
-
-    Args:
-        root: CTk root window
-        tray: Tray manager instance
-    """
-    tray.stop()
+def on_exit(root: Any, tray: Any | None) -> None:
+    """Handle application exit."""
+    if tray:
+        tray.stop()
     root.quit()
+
 
 
 def run_headless() -> None:
     """Run in headless mode (tray only, no GUI)."""
+    from src.browser_move.tray import TrayManager
+
     callbacks = {
         "show_window": lambda: print("Show window: GUI not available in headless mode"),
         "run_preset": lambda preset: run_preset_direct(preset.get("name")),

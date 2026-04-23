@@ -1,18 +1,38 @@
-"""Preset management form UI for browser_move."""
+"""Preset management form UI for ScreenHop."""
 
 from __future__ import annotations
 
-import re
-import customtkinter as ctk
-from tkinter import messagebox
+import os
+from pathlib import Path
+from tkinter import filedialog, messagebox
 from typing import Callable
+
+import customtkinter as ctk
+
 from src.browser_move.config import load_config, save_config
-from src.browser_move.browsers import detect_browser_path
+from src.browser_move.launcher import is_valid_executable_path
 from src.browser_move.monitors import get_display_choices
+from src.browser_move.preset_templates import build_preset_template, get_template_choices
+from src.browser_move.ui_theme import (
+    ACCENT,
+    ACCENT_HOVER,
+    BORDER,
+    DANGER,
+    INFO,
+    MODAL_GEOMETRY,
+    MODAL_MIN_SIZE,
+    SUCCESS,
+    SURFACE,
+    SURFACE_ALT,
+    TEXT_MUTED,
+    font,
+    style_card,
+    style_panel,
+)
 
 
 class PresetForm:
-    """Modal form for adding/editing browser presets."""
+    """Modal form for adding/editing universal app presets."""
 
     def __init__(
         self,
@@ -20,230 +40,448 @@ class PresetForm:
         preset: dict | None = None,
         on_save: Callable | None = None,
     ):
-        """Initialize preset form.
-
-        Args:
-            parent: Parent window (CTk or CTkToplevel)
-            preset: Existing preset dict for edit mode, None for add mode
-            on_save: Callback function to call after successful save
-        """
         self.parent = parent
         self.preset = preset
         self.on_save = on_save
         self.result = None
         self._display_id_by_label: dict[str, str] = {}
         self._display_label_by_id: dict[str, str] = {}
+        self._template_id_by_label: dict[str, str] = {}
+        self._advanced_visible = False
+        self._feedback_color = TEXT_MUTED
 
         self.setup_ui()
 
     def setup_ui(self) -> None:
-        """Create the modal form UI."""
         self.window = ctk.CTkToplevel(self.parent)
-        self.window.title("Add Preset" if not self.preset else "Edit Preset")
-        self.window.geometry("540x620")
-        self.window.minsize(500, 560)
+        self.window.title("Edit Preset" if self.preset else "New Preset")
+        self.window.geometry(MODAL_GEOMETRY)
+        self.window.minsize(*MODAL_MIN_SIZE)
         self.window.resizable(True, True)
+        self.window.configure(fg_color=SURFACE)
         self.window.grab_set()
         self.window.transient(self.parent)
         self._center_window()
 
-        main_frame = ctk.CTkFrame(self.window)
-        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        shell = ctk.CTkFrame(self.window, fg_color="transparent")
+        shell.pack(fill="both", expand=True, padx=18, pady=18)
 
-        title = ctk.CTkLabel(
-            main_frame,
-            text="Add New Preset" if not self.preset else "Edit Preset",
-            font=ctk.CTkFont(size=18, weight="bold"),
-        )
-        title.pack(fill="x", pady=(0, 10))
+        main_card = ctk.CTkFrame(shell)
+        style_panel(main_card)
+        main_card.pack(fill="both", expand=True)
 
-        # Scrollable body prevents action buttons from being clipped on high-DPI displays.
-        form_frame = ctk.CTkScrollableFrame(main_frame, fg_color="transparent")
-        form_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        header = ctk.CTkFrame(main_card, fg_color="transparent")
+        header.pack(fill="x", padx=22, pady=(20, 12))
 
-        name_label = ctk.CTkLabel(
-            form_frame,
-            text="Preset Name *",
-            font=ctk.CTkFont(size=13, weight="bold"),
+        ctk.CTkLabel(
+            header,
+            text="Edit App Preset" if self.preset else "Create App Preset",
+            font=font(20, "bold"),
             anchor="w",
-        )
-        name_label.pack(fill="x", pady=(0, 5))
-
-        self.name_entry = ctk.CTkEntry(
-            form_frame,
-            height=40,
-            font=ctk.CTkFont(size=13),
-            placeholder_text="Enter preset name",
-        )
-        self.name_entry.pack(fill="x", pady=(0, 15))
-
-        browser_label = ctk.CTkLabel(
-            form_frame,
-            text="Browser Type *",
-            font=ctk.CTkFont(size=13, weight="bold"),
+        ).pack(fill="x")
+        ctk.CTkLabel(
+            header,
+            text="Pick a Windows executable, choose the target display, and add optional launch tuning only when needed.",
+            font=font(12),
+            text_color=TEXT_MUTED,
             anchor="w",
-        )
-        browser_label.pack(fill="x", pady=(0, 5))
+            justify="left",
+            wraplength=620,
+        ).pack(fill="x", pady=(4, 0))
 
-        self.browser_combo = ctk.CTkComboBox(
-            form_frame,
-            values=["firefox", "chrome", "edge"],
-            height=40,
-            font=ctk.CTkFont(size=13),
-            state="readonly",
-        )
-        self.browser_combo.pack(fill="x", pady=(0, 15))
-        self.browser_combo.set("firefox")
+        form_body = ctk.CTkScrollableFrame(main_card, fg_color="transparent")
+        form_body.pack(fill="both", expand=True, padx=18, pady=(0, 12))
+        form_body.grid_columnconfigure(0, weight=1)
 
-        monitor_label = ctk.CTkLabel(
-            form_frame,
-            text="Target Display *",
-            font=ctk.CTkFont(size=13, weight="bold"),
+        self._create_template_picker(form_body, row=0)
+
+        self.name_entry = self._create_text_field(
+            form_body,
+            row=1,
+            label="Preset Name",
+            placeholder="OBS Studio - Display 2",
+            helper="Use a short name that still makes sense in tray and startup shortcuts.",
+        )
+
+        self.path_entry = self._create_browse_field(
+            form_body,
+            row=2,
+            label="Executable Path",
+            button_text="Browse",
+            placeholder="C:\\Program Files\\App\\app.exe",
+            helper="Choose any .exe on Windows. ScreenHop will launch it exactly as configured.",
+            command=self.browse_executable,
+        )
+
+        display_row = ctk.CTkFrame(form_body, fg_color="transparent")
+        display_row.grid(row=3, column=0, sticky="ew", pady=(0, 14))
+        display_row.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            display_row,
+            text="Target Display",
+            font=font(12, "bold"),
             anchor="w",
-        )
-        monitor_label.pack(fill="x", pady=(0, 5))
+        ).grid(row=0, column=0, sticky="w", pady=(0, 6))
 
-        monitor_row = ctk.CTkFrame(form_frame, fg_color="transparent")
-        monitor_row.pack(fill="x", pady=(0, 15))
+        monitor_input_row = ctk.CTkFrame(display_row, fg_color="transparent")
+        monitor_input_row.grid(row=1, column=0, sticky="ew")
+        monitor_input_row.grid_columnconfigure(0, weight=1)
 
         self.monitor_combo = ctk.CTkComboBox(
-            monitor_row,
-            values=["Loading monitors..."],
-            height=40,
-            font=ctk.CTkFont(size=13),
+            monitor_input_row,
+            values=["Loading displays..."],
             state="readonly",
+            height=40,
+            corner_radius=14,
+            border_color=BORDER,
+            font=font(12, "bold"),
         )
-        self.monitor_combo.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.monitor_combo.grid(row=0, column=0, sticky="ew", padx=(0, 10))
 
         self.refresh_monitors_btn = ctk.CTkButton(
-            monitor_row,
+            monitor_input_row,
             text="Refresh",
-            width=90,
+            width=96,
             height=40,
+            corner_radius=14,
+            fg_color=SURFACE_ALT,
+            hover_color=SURFACE,
+            border_width=1,
+            border_color=BORDER,
             command=self.refresh_monitor_choices,
+            font=font(12, "bold"),
         )
-        self.refresh_monitors_btn.pack(side="right")
+        self.refresh_monitors_btn.grid(row=0, column=1)
+
+        ctk.CTkLabel(
+            display_row,
+            text="Pick the display where the new app window should land after launch. If only one monitor is available, ScreenHop uses the main display.",
+            font=font(11),
+            text_color=TEXT_MUTED,
+            anchor="w",
+            justify="left",
+            wraplength=620,
+        ).grid(row=2, column=0, sticky="w", pady=(6, 0))
 
         self.refresh_monitor_choices()
 
-        url_label = ctk.CTkLabel(
-            form_frame,
-            text="URL *",
-            font=ctk.CTkFont(size=13, weight="bold"),
+        advanced_toggle_row = ctk.CTkFrame(form_body, fg_color="transparent")
+        advanced_toggle_row.grid(row=4, column=0, sticky="ew", pady=(4, 12))
+        advanced_toggle_row.grid_columnconfigure(0, weight=1)
+
+        self.advanced_toggle_btn = ctk.CTkButton(
+            advanced_toggle_row,
+            text="Show Advanced Options",
+            command=self.toggle_advanced,
+            height=38,
+            corner_radius=14,
+            fg_color=SURFACE_ALT,
+            hover_color=SURFACE,
+            border_width=1,
+            border_color=BORDER,
+            font=font(12, "bold"),
+        )
+        self.advanced_toggle_btn.grid(row=0, column=0, sticky="w")
+
+        self.advanced_frame = ctk.CTkFrame(form_body)
+        style_card(self.advanced_frame, fg_color=("#eff7ff", "#132033"), border_color=INFO)
+        self.advanced_frame.grid(row=5, column=0, sticky="ew", pady=(0, 14))
+        self.advanced_frame.grid_columnconfigure(0, weight=1)
+
+        self.launch_args_entry = self._create_text_field(
+            self.advanced_frame,
+            row=0,
+            label="Launch Arguments",
+            placeholder="--profile production --startvirtualcam",
+            helper="Optional. Keep Windows-style quoting exactly as the app expects.",
+            padx=14,
+            pady_top=14,
+        )
+
+        self.working_dir_entry = self._create_browse_field(
+            self.advanced_frame,
+            row=1,
+            label="Working Directory",
+            button_text="Folder",
+            placeholder="Leave empty to use the executable folder",
+            helper="Optional. Use this when the app depends on a specific startup folder.",
+            command=self.browse_working_directory,
+            padx=14,
+        )
+
+        self.window_hint_entry = self._create_text_field(
+            self.advanced_frame,
+            row=2,
+            label="Window Title Hint",
+            placeholder="OBS / VLC / Dashboard",
+            helper="Optional. Helps ScreenHop choose the right new window when the app opens more than one.",
+            padx=14,
+            pady_bottom=14,
+        )
+
+        self.feedback_label = ctk.CTkLabel(
+            main_card,
+            text="",
+            font=font(11, "bold"),
+            text_color=self._feedback_color,
+            justify="left",
+            wraplength=650,
             anchor="w",
         )
-        url_label.pack(fill="x", pady=(0, 5))
+        self.feedback_label.pack(fill="x", padx=22, pady=(0, 12))
 
-        self.url_entry = ctk.CTkEntry(
-            form_frame,
-            height=40,
-            font=ctk.CTkFont(size=13),
-            placeholder_text="https://example.com",
+        footer = ctk.CTkFrame(main_card, fg_color="transparent")
+        footer.pack(fill="x", padx=22, pady=(0, 20))
+        footer.grid_columnconfigure(0, weight=1)
+        footer.grid_columnconfigure(1, weight=1)
+        footer.grid_columnconfigure(2, weight=1)
+
+        self.save_btn = ctk.CTkButton(
+            footer,
+            text="Update Preset" if self.preset else "Save Preset",
+            command=self.save_preset,
+            height=42,
+            corner_radius=14,
+            fg_color=ACCENT,
+            hover_color=ACCENT_HOVER,
+            font=font(13, "bold"),
         )
-        self.url_entry.pack(fill="x", pady=(0, 15))
-
-        path_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
-        path_frame.pack(fill="x", pady=(0, 15))
-
-        path_label = ctk.CTkLabel(
-            path_frame,
-            text="Browser Path (optional)",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            anchor="w",
-        )
-        path_label.pack(fill="x", pady=(0, 5))
-
-        path_entry_frame = ctk.CTkFrame(path_frame, fg_color="transparent")
-        path_entry_frame.pack(fill="x")
-
-        self.path_entry = ctk.CTkEntry(
-            path_entry_frame,
-            height=40,
-            font=ctk.CTkFont(size=13),
-            placeholder_text="Leave empty for auto-detect",
-        )
-        self.path_entry.pack(side="left", fill="both", expand=True, padx=(0, 10))
-
-        self.detect_btn = ctk.CTkButton(
-            path_entry_frame,
-            text="Auto-Detect",
-            width=110,
-            height=40,
-            command=self.auto_detect_path,
-        )
-        self.detect_btn.pack(side="right")
-
-        self.kiosk_var = ctk.BooleanVar(value=False)
-        self.kiosk_checkbox = ctk.CTkCheckBox(
-            form_frame,
-            text="Kiosk Mode (Fullscreen)",
-            variable=self.kiosk_var,
-            font=ctk.CTkFont(size=13),
-            checkbox_width=20,
-            checkbox_height=20,
-        )
-        self.kiosk_checkbox.pack(fill="x", pady=(10, 0))
-
-        footer_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        footer_frame.pack(fill="x", pady=(10, 0))
-
-        button_frame = ctk.CTkFrame(footer_frame, fg_color="transparent")
-        button_frame.pack(fill="x")
+        self.save_btn.grid(row=0, column=0, sticky="ew", padx=(0, 8))
 
         if self.preset:
-            self.save_btn = ctk.CTkButton(
-                button_frame,
-                text="Update",
-                height=40,
-                font=ctk.CTkFont(size=14, weight="bold"),
-                command=self.save_preset,
-            )
-            self.save_btn.pack(side="left", fill="both", expand=True, padx=(0, 10))
-
             self.delete_btn = ctk.CTkButton(
-                button_frame,
+                footer,
                 text="Delete",
-                height=40,
-                font=ctk.CTkFont(size=14),
-                fg_color="#dc3545",
-                hover_color="#c82333",
                 command=self.delete_preset,
+                height=42,
+                corner_radius=14,
+                fg_color=DANGER,
+                hover_color=("#b53d4d", "#dc2626"),
+                font=font(13, "bold"),
             )
-            self.delete_btn.pack(side="right", padx=(10, 0))
+            self.delete_btn.grid(row=0, column=1, sticky="ew", padx=8)
         else:
-            self.save_btn = ctk.CTkButton(
-                button_frame,
-                text="Save",
-                height=40,
-                font=ctk.CTkFont(size=14, weight="bold"),
-                command=self.save_preset,
-            )
-            self.save_btn.pack(fill="x")
+            spacer = ctk.CTkFrame(footer, fg_color="transparent")
+            spacer.grid(row=0, column=1, sticky="ew")
 
         self.cancel_btn = ctk.CTkButton(
-            footer_frame,
+            footer,
             text="Cancel",
-            height=35,
-            font=ctk.CTkFont(size=13),
-            fg_color="transparent",
-            border_width=2,
             command=self.window.destroy,
+            height=42,
+            corner_radius=14,
+            fg_color=SURFACE_ALT,
+            hover_color=SURFACE,
+            border_width=1,
+            border_color=BORDER,
+            font=font(13, "bold"),
         )
-        self.cancel_btn.pack(fill="x", pady=(10, 0))
+        self.cancel_btn.grid(row=0, column=2, sticky="ew", padx=(8, 0))
+
+        self._bind_clear_feedback(self.name_entry)
+        self._bind_clear_feedback(self.path_entry)
+        self._bind_clear_feedback(self.launch_args_entry)
+        self._bind_clear_feedback(self.working_dir_entry)
+        self._bind_clear_feedback(self.window_hint_entry)
 
         if self.preset:
             self._populate_fields()
+            self._advanced_visible = any(
+                str(self.preset.get(key, "")).strip()
+                for key in ("launch_args", "working_directory", "window_title_hint")
+            )
+        else:
+            self.template_combo.set("Blank / Manual")
+        self._sync_advanced_state()
+
+    def _create_template_picker(
+        self,
+        parent: ctk.CTkScrollableFrame,
+        row: int,
+    ) -> None:
+        template_row = ctk.CTkFrame(parent)
+        style_card(template_row, fg_color=("#f4f9ff", "#122033"), border_color=INFO)
+        template_row.grid(row=row, column=0, sticky="ew", pady=(0, 14))
+        template_row.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            template_row,
+            text="Preset Template",
+            font=font(12, "bold"),
+            anchor="w",
+        ).grid(row=0, column=0, sticky="w", padx=14, pady=(14, 6))
+
+        selector_row = ctk.CTkFrame(template_row, fg_color="transparent")
+        selector_row.grid(row=1, column=0, sticky="ew", padx=14)
+        selector_row.grid_columnconfigure(0, weight=1)
+
+        labels: list[str] = []
+        for template_id, label in get_template_choices():
+            labels.append(label)
+            self._template_id_by_label[label] = template_id
+
+        self.template_combo = ctk.CTkComboBox(
+            selector_row,
+            values=labels,
+            state="readonly",
+            height=40,
+            corner_radius=14,
+            border_color=BORDER,
+            font=font(12, "bold"),
+        )
+        self.template_combo.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+        if labels:
+            self.template_combo.set(labels[0])
+
+        self.apply_template_btn = ctk.CTkButton(
+            selector_row,
+            text="Apply",
+            command=self.apply_selected_template,
+            width=96,
+            height=40,
+            corner_radius=14,
+            fg_color=SURFACE_ALT,
+            hover_color=SURFACE,
+            border_width=1,
+            border_color=BORDER,
+            font=font(12, "bold"),
+        )
+        self.apply_template_btn.grid(row=0, column=1)
+
+        ctk.CTkLabel(
+            template_row,
+            text=(
+                "Use built-in presets for common launch patterns. "
+                "Browser Kiosk (Firefox) follows the launch parameters from docs/run.bat."
+            ),
+            font=font(11),
+            text_color=TEXT_MUTED,
+            anchor="w",
+            justify="left",
+            wraplength=620,
+        ).grid(row=2, column=0, sticky="w", padx=14, pady=(6, 14))
+
+    def _create_text_field(
+        self,
+        parent: ctk.CTkFrame | ctk.CTkScrollableFrame,
+        row: int,
+        label: str,
+        placeholder: str,
+        helper: str,
+        padx: int = 0,
+        pady_top: int = 0,
+        pady_bottom: int = 14,
+    ) -> ctk.CTkEntry:
+        field = ctk.CTkFrame(parent, fg_color="transparent")
+        field.grid(row=row, column=0, sticky="ew", padx=padx, pady=(pady_top, pady_bottom))
+        field.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(field, text=label, font=font(12, "bold"), anchor="w").grid(
+            row=0, column=0, sticky="w", pady=(0, 6)
+        )
+        entry = ctk.CTkEntry(
+            field,
+            height=40,
+            corner_radius=14,
+            placeholder_text=placeholder,
+            border_color=BORDER,
+            font=font(12, "bold"),
+        )
+        entry.grid(row=1, column=0, sticky="ew")
+        ctk.CTkLabel(
+            field,
+            text=helper,
+            font=font(11),
+            text_color=TEXT_MUTED,
+            anchor="w",
+            justify="left",
+            wraplength=620,
+        ).grid(row=2, column=0, sticky="w", pady=(6, 0))
+        return entry
+
+    def _create_browse_field(
+        self,
+        parent: ctk.CTkFrame | ctk.CTkScrollableFrame,
+        row: int,
+        label: str,
+        button_text: str,
+        placeholder: str,
+        helper: str,
+        command: Callable[[], None],
+        padx: int = 0,
+    ) -> ctk.CTkEntry:
+        field = ctk.CTkFrame(parent, fg_color="transparent")
+        field.grid(row=row, column=0, sticky="ew", padx=padx, pady=(0, 14))
+        field.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(field, text=label, font=font(12, "bold"), anchor="w").grid(
+            row=0, column=0, sticky="w", pady=(0, 6)
+        )
+
+        input_row = ctk.CTkFrame(field, fg_color="transparent")
+        input_row.grid(row=1, column=0, sticky="ew")
+        input_row.grid_columnconfigure(0, weight=1)
+
+        entry = ctk.CTkEntry(
+            input_row,
+            height=40,
+            corner_radius=14,
+            placeholder_text=placeholder,
+            border_color=BORDER,
+            font=font(12, "bold"),
+        )
+        entry.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+
+        ctk.CTkButton(
+            input_row,
+            text=button_text,
+            command=command,
+            width=96,
+            height=40,
+            corner_radius=14,
+            fg_color=SURFACE_ALT,
+            hover_color=SURFACE,
+            border_width=1,
+            border_color=BORDER,
+            font=font(12, "bold"),
+        ).grid(row=0, column=1)
+
+        ctk.CTkLabel(
+            field,
+            text=helper,
+            font=font(11),
+            text_color=TEXT_MUTED,
+            anchor="w",
+            justify="left",
+            wraplength=620,
+        ).grid(row=2, column=0, sticky="w", pady=(6, 0))
+        return entry
+
+    def _bind_clear_feedback(self, entry: ctk.CTkEntry) -> None:
+        entry.bind("<KeyRelease>", lambda _event: self.set_feedback("", TEXT_MUTED))
+
+    def toggle_advanced(self) -> None:
+        self._advanced_visible = not self._advanced_visible
+        self._sync_advanced_state()
+
+    def _sync_advanced_state(self) -> None:
+        if self._advanced_visible:
+            self.advanced_frame.grid()
+            self.advanced_toggle_btn.configure(text="Hide Advanced Options")
+        else:
+            self.advanced_frame.grid_remove()
+            self.advanced_toggle_btn.configure(text="Show Advanced Options")
 
     def _center_window(self) -> None:
-        """Center the modal window over parent."""
         self.parent.update_idletasks()
         parent_x = self.parent.winfo_x()
         parent_y = self.parent.winfo_y()
         parent_width = self.parent.winfo_width()
         parent_height = self.parent.winfo_height()
 
-        window_width = 540
-        window_height = 620
+        window_width = 760
+        window_height = 680
 
         if parent_width <= 1 or parent_height <= 1:
             screen_width = self.window.winfo_screenwidth()
@@ -254,34 +492,24 @@ class PresetForm:
             x = parent_x + (parent_width - window_width) // 2
             y = parent_y + (parent_height - window_height) // 2
 
-        x = max(0, x)
-        y = max(0, y)
-        self.window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        self.window.geometry(f"{window_width}x{window_height}+{max(0, x)}+{max(0, y)}")
 
     def _populate_fields(self) -> None:
-        """Fill form fields with existing preset data."""
-        self.name_entry.insert(0, self.preset.get("name", ""))
-        self.browser_combo.set(self.preset.get("browser_type", "firefox"))
-        self.url_entry.insert(0, self.preset.get("url", ""))
-        self.path_entry.insert(0, self.preset.get("browser_path", ""))
-        self.kiosk_var.set(self.preset.get("kiosk_mode", False))
+        self.name_entry.insert(0, str(self.preset.get("name", "")))
+        self.path_entry.insert(0, str(self.preset.get("executable_path", "")))
+        self.launch_args_entry.insert(0, str(self.preset.get("launch_args", "")))
+        self.working_dir_entry.insert(0, str(self.preset.get("working_directory", "")))
+        self.window_hint_entry.insert(0, str(self.preset.get("window_title_hint", "")))
+        self.template_combo.set("Blank / Manual")
 
-        saved_display_id = str(
-            self.preset.get("display_id", self.preset.get("monitor_id", "")) or ""
-        ).strip()
-        saved_display_name = str(
-            self.preset.get("display_name", self.preset.get("monitor_name", "")) or ""
-        ).strip()
-
+        saved_display_id = str(self.preset.get("display_id", "")).strip()
+        saved_display_name = str(self.preset.get("display_name", "")).strip()
         if saved_display_id and saved_display_id in self._display_label_by_id:
             self.monitor_combo.set(self._display_label_by_id[saved_display_id])
-            return
-
-        if saved_display_name and saved_display_name in self._display_id_by_label:
+        elif saved_display_name and saved_display_name in self._display_id_by_label:
             self.monitor_combo.set(saved_display_name)
 
     def refresh_monitor_choices(self) -> None:
-        """Reload monitor list from system and refresh monitor dropdown."""
         current_label = self.monitor_combo.get() if hasattr(self, "monitor_combo") else ""
 
         self._display_id_by_label.clear()
@@ -289,10 +517,8 @@ class PresetForm:
 
         choices = get_display_choices()
         if not choices:
-            self.monitor_combo.configure(
-                values=["No multiple display detected"], state="disabled"
-            )
-            self.monitor_combo.set("No multiple display detected")
+            self.monitor_combo.configure(values=["No display detected"], state="disabled")
+            self.monitor_combo.set("No display detected")
             return
 
         labels: list[str] = []
@@ -304,131 +530,183 @@ class PresetForm:
         self.monitor_combo.configure(values=labels, state="readonly")
         if current_label in self._display_id_by_label:
             self.monitor_combo.set(current_label)
-        else:
+        elif labels:
             self.monitor_combo.set(labels[0])
 
-    def auto_detect_path(self) -> None:
-        browser_type = self.browser_combo.get()
-        detected_path = detect_browser_path(browser_type)
+    def browse_executable(self) -> None:
+        selected_path = filedialog.askopenfilename(
+            parent=self.window,
+            title="Choose executable",
+            filetypes=[("Executable files", "*.exe"), ("All files", "*.*")],
+        )
+        if not selected_path:
+            return
 
-        if detected_path:
-            self.path_entry.delete(0, "end")
-            self.path_entry.insert(0, detected_path)
+        self.path_entry.delete(0, "end")
+        self.path_entry.insert(0, selected_path)
+
+        if not self.working_dir_entry.get().strip():
+            self.working_dir_entry.insert(0, str(Path(selected_path).parent))
+        self.set_feedback("", TEXT_MUTED)
+
+    def browse_working_directory(self) -> None:
+        initial_dir = self.working_dir_entry.get().strip()
+        if not initial_dir:
+            executable_path = self.path_entry.get().strip()
+            if executable_path:
+                initial_dir = str(Path(executable_path).parent)
+
+        selected_dir = filedialog.askdirectory(
+            parent=self.window,
+            title="Choose working directory",
+            initialdir=initial_dir or None,
+        )
+        if not selected_dir:
+            return
+
+        self.working_dir_entry.delete(0, "end")
+        self.working_dir_entry.insert(0, selected_dir)
+        self.set_feedback("", TEXT_MUTED)
+
+    def _set_entry_value(self, entry: ctk.CTkEntry, value: str) -> None:
+        entry.delete(0, "end")
+        if value:
+            entry.insert(0, value)
+
+    def apply_selected_template(self) -> None:
+        selected_label = self.template_combo.get().strip()
+        template_id = self._template_id_by_label.get(selected_label, "")
+        if not template_id or template_id == "blank":
+            self.set_feedback("Blank template selected. Fill the preset manually.", INFO)
+            return
+
+        template_data = build_preset_template(template_id)
+        if not template_data:
+            self.set_feedback("Selected template is not available.", DANGER)
+            return
+
+        self._set_entry_value(self.name_entry, str(template_data.get("name", "")))
+        self._set_entry_value(
+            self.path_entry, str(template_data.get("executable_path", ""))
+        )
+        self._set_entry_value(
+            self.launch_args_entry, str(template_data.get("launch_args", ""))
+        )
+        self._set_entry_value(
+            self.working_dir_entry, str(template_data.get("working_directory", ""))
+        )
+        self._set_entry_value(
+            self.window_hint_entry, str(template_data.get("window_title_hint", ""))
+        )
+
+        self._advanced_visible = True
+        self._sync_advanced_state()
+
+        template_notice = str(template_data.get("_template_notice", "")).strip()
+        if template_notice:
+            self.set_feedback(template_notice, INFO)
         else:
-            self.show_error(f"Could not find {browser_type} installation")
+            self.set_feedback("Template applied.", INFO)
 
-    def validate_url(self, url: str) -> bool:
-        """Validate URL format.
-
-        Args:
-            url: URL string to validate
-
-        Returns:
-            True if valid http/https URL, False otherwise
-        """
-        pattern = r"^https?://[^\s/$.?#].[^\s]*$"
-        return re.match(pattern, url) is not None
+    def set_feedback(self, message: str, color: tuple[str, str]) -> None:
+        self._feedback_color = color
+        self.feedback_label.configure(text=message, text_color=color)
 
     def validate_form(self) -> tuple[bool, str]:
         name = self.name_entry.get().strip()
-        url = self.url_entry.get().strip()
+        executable_path = self.path_entry.get().strip()
+        working_directory = self.working_dir_entry.get().strip()
         selected_display = self.monitor_combo.get().strip()
 
         if not name:
-            return False, "Preset name is required"
+            return False, "Preset name is required."
 
         config = load_config()
-        presets = config.get("presets", [])
+        for preset in config.get("presets", []):
+            existing_name = str(preset.get("name", "")).strip().lower()
+            if existing_name != name.lower():
+                continue
+            if self.preset and str(self.preset.get("name", "")).strip().lower() == existing_name:
+                continue
+            return False, f"Preset name '{name}' already exists."
 
-        for preset in presets:
-            if preset["name"].lower() == name.lower():
-                if self.preset and self.preset["name"] == preset["name"]:
-                    continue
-                return False, f"Preset name '{name}' already exists"
+        if not executable_path:
+            return False, "Executable path is required."
+        if not is_valid_executable_path(executable_path):
+            return False, "Executable path must point to an existing .exe file."
 
-        if not url:
-            return False, "URL is required"
-
-        if not self.validate_url(url):
-            return False, "URL must start with http:// or https://"
+        if working_directory and not os.path.isdir(working_directory):
+            return False, "Working directory must be an existing folder or left empty."
 
         if selected_display not in self._display_id_by_label:
-            return False, "Please select a valid display target"
+            return False, "Please choose a valid target display."
 
         return True, ""
 
     def save_preset(self) -> None:
-        is_valid, error_msg = self.validate_form()
-
+        is_valid, error_message = self.validate_form()
         if not is_valid:
-            self.show_error(error_msg)
+            self.set_feedback(error_message, DANGER)
             return
 
         preset_data = {
             "name": self.name_entry.get().strip(),
-            "browser_type": self.browser_combo.get(),
-            "browser_path": self.path_entry.get().strip(),
-            "url": self.url_entry.get().strip(),
-            "kiosk_mode": self.kiosk_var.get(),
+            "executable_path": self.path_entry.get().strip(),
+            "launch_args": self.launch_args_entry.get().strip(),
+            "working_directory": self.working_dir_entry.get().strip(),
+            "window_title_hint": self.window_hint_entry.get().strip(),
             "display_id": self._display_id_by_label[self.monitor_combo.get().strip()],
             "display_name": self.monitor_combo.get().strip(),
-            # Keep legacy keys for backward compatibility.
-            "monitor_id": self._display_id_by_label[self.monitor_combo.get().strip()],
-            "monitor_name": self.monitor_combo.get().strip(),
         }
 
         config = load_config()
         presets = config.get("presets", [])
 
         if self.preset:
-            for i, existing in enumerate(presets):
-                if existing["name"] == self.preset["name"]:
-                    presets[i] = preset_data
-                    self.show_success(f"Preset '{preset_data['name']}' updated")
+            for index, existing in enumerate(presets):
+                if existing.get("name") == self.preset.get("name"):
+                    presets[index] = preset_data
                     break
         else:
             presets.append(preset_data)
-            self.show_success(f"Preset '{preset_data['name']}' created")
 
         config["presets"] = presets
+        if not save_config(config):
+            self.set_feedback("Failed to save configuration.", DANGER)
+            return
 
-        if save_config(config):
-            self.result = preset_data
-            if self.on_save:
-                self.on_save(preset_data)
-            self.window.destroy()
-        else:
-            self.show_error("Failed to save configuration")
+        self.result = preset_data
+        self.set_feedback("Preset saved successfully.", SUCCESS)
+        callback = self.on_save
+        self.window.destroy()
+        if callback:
+            self.parent.after(0, lambda: callback(preset_data))
 
     def delete_preset(self) -> None:
         if not self.preset:
             return
 
         confirm = messagebox.askyesno(
-            title="Confirm Delete",
-            message=f"Are you sure you want to delete preset '{self.preset['name']}'?",
+            title="Delete Preset",
+            message=f"Delete preset '{self.preset['name']}'?",
+            parent=self.window,
         )
-
         if not confirm:
             return
 
         config = load_config()
-        presets = config.get("presets", [])
+        config["presets"] = [
+            preset
+            for preset in config.get("presets", [])
+            if preset.get("name") != self.preset.get("name")
+        ]
 
-        presets = [p for p in presets if p["name"] != self.preset["name"]]
-        config["presets"] = presets
+        if not save_config(config):
+            self.set_feedback("Failed to delete preset.", DANGER)
+            return
 
-        if save_config(config):
-            self.show_success(f"Preset '{self.preset['name']}' deleted")
-            if self.on_save:
-                self.on_save(None)
-            self.window.destroy()
-        else:
-            self.show_error("Failed to delete preset")
-
-    def show_error(self, message: str) -> None:
-        """Show error message dialog."""
-        messagebox.showerror("Error", message)
-
-    def show_success(self, message: str) -> None:
-        print(f"[preset_form] {message}")
+        self.set_feedback("Preset deleted.", INFO)
+        callback = self.on_save
+        self.window.destroy()
+        if callback:
+            self.parent.after(0, lambda: callback(None))

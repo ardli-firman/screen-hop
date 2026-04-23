@@ -20,6 +20,7 @@ def get_primary_monitor() -> Optional[Any]:
 
 
 def get_external_monitors() -> List[Any]:
+    """Return monitors that are not primary (extended displays)."""
     return [m for m in get_monitors() if not m.is_primary]
 
 
@@ -53,19 +54,20 @@ def get_monitor_display_name(monitor: Any, index: int) -> str:
 
 
 def get_monitor_choices() -> List[Tuple[str, str]]:
-    """Return monitor choices as list of (monitor_id, display_name)."""
+    """Return extended monitor choices as list of (monitor_id, display_name)."""
     choices: List[Tuple[str, str]] = []
-    for idx, monitor in enumerate(get_monitors()):
+    for idx, monitor in enumerate(get_external_monitors()):
         choices.append((monitor_to_id(monitor), get_monitor_display_name(monitor, idx)))
     return choices
 
 
-def find_monitor_by_id(monitor_id: str | None) -> Optional[Any]:
+def find_monitor_by_id(monitor_id: str | None, monitors: List[Any] | None = None) -> Optional[Any]:
     """Find monitor object from saved monitor id."""
     if not monitor_id:
         return None
 
-    for monitor in get_monitors():
+    search_scope = monitors if monitors is not None else get_external_monitors()
+    for monitor in search_scope:
         if monitor_to_id(monitor) == monitor_id:
             return monitor
     return None
@@ -77,11 +79,11 @@ def resolve_monitor_for_preset(preset: dict) -> Tuple[Optional[Any], str, bool]:
     Returns:
         Tuple of (monitor, display_name, used_fallback)
     """
-    monitors = get_monitors()
+    monitors = get_external_monitors()
     if not monitors:
         return None, "", False
 
-    selected = find_monitor_by_id(preset.get("monitor_id"))
+    selected = find_monitor_by_id(preset.get("monitor_id"), monitors=monitors)
     if selected:
         try:
             idx = monitors.index(selected)
@@ -89,7 +91,7 @@ def resolve_monitor_for_preset(preset: dict) -> Tuple[Optional[Any], str, bool]:
             idx = 0
         return selected, get_monitor_display_name(selected, idx), False
 
-    fallback = get_primary_monitor() or monitors[0]
+    fallback = monitors[0]
     try:
         idx = monitors.index(fallback)
     except ValueError:

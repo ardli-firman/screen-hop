@@ -95,7 +95,7 @@ class PresetForm:
 
         monitor_label = ctk.CTkLabel(
             form_frame,
-            text="Target Monitor *",
+            text="Target Extended Monitor *",
             font=ctk.CTkFont(size=13, weight="bold"),
             anchor="w",
         )
@@ -283,8 +283,10 @@ class PresetForm:
 
         choices = get_monitor_choices()
         if not choices:
-            self.monitor_combo.configure(values=["No monitor detected"], state="disabled")
-            self.monitor_combo.set("No monitor detected")
+            self.monitor_combo.configure(
+                values=["No extended monitor detected"], state="disabled"
+            )
+            self.monitor_combo.set("No extended monitor detected")
             return
 
         labels: list[str] = []

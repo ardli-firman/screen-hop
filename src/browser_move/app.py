@@ -181,7 +181,7 @@ class MainWindow:
     def _execute_preset(self, preset: dict) -> bool:
         target_monitor, target_label, used_fallback = resolve_monitor_for_preset(preset)
         if not target_monitor:
-            self.update_status("No monitor detected")
+            self.update_status("No extended monitor detected (set Display mode to Extend)")
             return False
 
         if used_fallback:

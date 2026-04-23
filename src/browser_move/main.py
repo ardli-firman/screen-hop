@@ -79,7 +79,7 @@ def run_preset_direct(preset_name: str) -> bool:
 
     target_monitor, target_label, used_fallback = resolve_monitor_for_preset(preset)
     if not target_monitor:
-        print("No monitor detected")
+        print("No extended monitor detected (set Display mode to Extend)")
         return False
 
     if used_fallback:

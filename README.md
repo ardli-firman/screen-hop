@@ -1,124 +1,83 @@
 # Browser Move Automation
 
-A Windows GUI application to automatically launch browsers and move them to external monitors. Perfect for kiosks, digital signage, or multi-monitor setups.
+Windows GUI app to launch Firefox/Chrome/Edge and move the window to a selected display.
 
 ## Features
 
-- 🖥️ **Multi-Monitor Support**: Automatically detects and moves browsers to external monitors
-- 🎨 **Modern GUI**: Built with CustomTkinter for a clean, modern interface
-- 📋 **Preset Management**: Save and manage multiple browser configurations
-- 🖼️ **Kiosk Mode**: Launch browsers in fullscreen kiosk mode
-- 🔔 **System Tray**: Minimize to system tray for background operation
-- 🔗 **Shortcuts**: Create desktop and startup shortcuts
-- 🔒 **Single Instance**: Prevents multiple app instances
-- ⚙️ **Configurable**: JSON-based configuration with GUI editor
+- Multi-display detection
+- Preset management
+- Kiosk mode launch
+- System tray support
+- Desktop/startup shortcuts
+- Single-instance protection
 
-## Installation (Development)
+## Run In Development
 
-1. Clone the repository:
-   ```bash
-   git clone <repo-url>
-   cd browser-move-automation
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-   For Windows 7 target builds, use Python `3.8.x` environment.
-
-3. Run in development mode:
-   ```bash
-   python -m src.browser_move.main
-   ```
-
-## Usage
-
-### GUI Mode
-
-1. Launch the application
-2. Create a preset with URL, browser type, and monitor
-3. Click "Run Preset" to launch and move browser
-
-### CLI Mode
-
-Run preset directly without GUI:
 ```bash
-python -m src.browser_move.main --preset "My Preset"
+pip install -r requirements.txt
+python -m src.browser_move.main
 ```
 
-Run in background (tray only):
+CLI mode:
+
 ```bash
+python -m src.browser_move.main --preset "My Preset"
 python -m src.browser_move.main --headless
 ```
 
-Run preset in background:
-```bash
-python -m src.browser_move.main --preset "My Preset" --headless
-```
+## Build EXE (Win7-compatible baseline)
 
-## Building Executable
-
-Build standalone executable with PyInstaller:
+Use a Python `3.8.x` environment when targeting Windows 7.
 
 ```bash
+pip install -r requirements.txt
 pyinstaller browser_move.spec
 ```
 
-For Windows 7 compatibility, build with:
+Output:
+
+- `dist/browser_move/browser_move.exe`
+
+## Build Installer (Windows 7+)
+
+This repo includes:
+
+- Inno Setup script: `installer/browser_move_win7.iss`
+- Build helper: `build_installer.ps1`
+
+### Prerequisites
 
 - Python `3.8.x`
-- `pyinstaller` `<5.0` (already pinned in `requirements.txt`)
+- Inno Setup 6 or 7 (`ISCC.exe`)
 
-Output will be in `dist/browser_move/` directory.
+### One-command build (PowerShell)
 
-## Configuration
-
-Configuration is stored in `config.json` in the application directory:
-
-```json
-{
-  "presets": [
-    {
-      "name": "My Preset",
-      "browser_type": "firefox",
-      "browser_path": "C:/Program Files/Mozilla Firefox/firefox.exe",
-      "url": "https://example.com",
-      "kiosk_mode": false
-    }
-  ],
-  "theme": "System",
-  "auto_start": false,
-  "close_behavior": "Minimize to Tray"
-}
+```powershell
+.\build_installer.ps1
 ```
 
-### Preset Fields
+Optional parameters:
 
-- `name`: Display name for the preset
-- `browser_type`: firefox, chrome, or edge
-- `browser_path`: Full path to browser executable (optional, auto-detected if not set)
-- `url`: URL to open in browser
-- `kiosk_mode`: Launch in fullscreen kiosk mode
+- `-PythonCmd "C:\Path\To\python.exe"`
+- `-IsccPath "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"`
+- `-SkipDependencyInstall`
 
-### Settings
+Installer output:
 
-- `theme`: UI theme (Dark, Light, or System)
-- `auto_start`: Add to Windows startup
-- `close_behavior`: Action when closing window (Exit or Minimize to Tray)
-
-## Requirements
-
-- Windows 7/10/11
-- Python 3.8.x (recommended for build/runtime compatibility, especially Windows 7)
-- Firefox, Chrome, or Edge installed
+- `dist/installer/BrowserMoveAutomation-<version>-win7plus.exe`
 
 ## Windows 7 Notes
 
-- Windows 7 is end-of-life and no longer receives security updates from Microsoft.
-- Build the executable on a machine with Python `3.8.x` and install Microsoft Visual C++ Redistributable if required on target machines.
+- Build with Python `3.8.x` specifically for Windows 7 target compatibility.
+- Installer minimum OS is set to Windows 7 SP1 (`MinVersion=6.1sp1`).
+- Installer defaults to per-user install (`{localappdata}`), so config writes do not require admin rights.
 
-## License
+## Project Layout
 
-MIT License
+```text
+src/browser_move/       main package
+browser_move.spec       pyinstaller build spec
+installer/              inno setup script(s)
+build_installer.ps1     build exe + installer
+config.json             app config
+```

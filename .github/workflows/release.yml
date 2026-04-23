@@ -44,7 +44,9 @@ jobs:
           $version = "${{ steps.version.outputs.version }}"
           $initFile = "src/browser_move/__init__.py"
           $content = Get-Content $initFile -Raw
-          $newContent = $content -replace "__version__ = \"[^\"]+\"", "__version__ = \"$version\""
+          $pattern = '__version__ = "[^"]+"'
+          $replacement = "__version__ = `"${version}`""
+          $newContent = $content -replace $pattern, $replacement
           Set-Content $initFile $newContent -Encoding UTF8
           Write-Host "Updated __init__.py to version $version"
         shell: pwsh

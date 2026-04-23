@@ -1,14 +1,14 @@
 """Main window UI for browser move automation."""
 
 import customtkinter as ctk
-from typing import Callable, Any
+from typing import Any
 
 from src.browser_move.config import load_config
 from src.browser_move.settings_window import SettingsWindow
 from src.browser_move.preset_form import PresetForm
 from src.browser_move.browsers import launch_browser
 from src.browser_move.window_mover import find_browser_window, move_window_to_monitor
-from src.browser_move.monitors import get_external_monitors
+from src.browser_move.monitors import resolve_monitor_for_preset
 
 
 class MainWindow:
@@ -95,6 +95,15 @@ class MainWindow:
         )
         self.new_btn.pack(pady=5, padx=10)
 
+        self.edit_btn = ctk.CTkButton(
+            right_frame,
+            text="Edit Preset",
+            command=self.edit_preset,
+            height=40,
+            width=150,
+        )
+        self.edit_btn.pack(pady=5, padx=10)
+
         self.settings_btn = ctk.CTkButton(
             right_frame,
             text="Settings",
@@ -170,12 +179,19 @@ class MainWindow:
         return None
 
     def _execute_preset(self, preset: dict) -> bool:
-        monitors = get_external_monitors()
-        if not monitors:
-            self.update_status("No external monitor detected")
+        target_monitor, target_label, used_fallback = resolve_monitor_for_preset(preset)
+        if not target_monitor:
+            self.update_status("No monitor detected")
             return False
 
-        self.update_status(f"Launching {preset['browser_type']}...")
+        if used_fallback:
+            self.update_status(
+                f"Saved monitor not found, using {target_label}. Launching {preset['browser_type']}..."
+            )
+        else:
+            self.update_status(
+                f"Launching {preset['browser_type']} on {target_label}..."
+            )
 
         proc = launch_browser(
             preset["browser_type"],
@@ -192,32 +208,61 @@ class MainWindow:
 
         hwnd = find_browser_window(preset["browser_type"])
         if hwnd:
-            move_window_to_monitor(hwnd, monitors[0])
-            self.update_status("Browser moved to external monitor")
-            return True
-        else:
-            self.update_status("Failed to find browser window")
+            moved = move_window_to_monitor(hwnd, target_monitor)
+            if moved:
+                self.update_status(f"Browser moved to {target_label}")
+                return True
+            self.update_status(f"Failed to move browser to {target_label}")
             return False
+
+        self.update_status("Failed to find browser window")
+        return False
 
     def new_preset(self) -> None:
         self.update_status("Creating new preset...")
+        self._open_preset_form(preset=None)
+
+    def edit_preset(self) -> None:
+        selected_name = self.preset_combo.get()
+        if not selected_name or selected_name == "Select Preset":
+            self.update_status("Please select a preset to edit")
+            return
+
+        preset = self._find_preset_by_name(selected_name)
+        if not preset:
+            self.update_status(f"Preset '{selected_name}' not found")
+            return
+
+        self.update_status(f"Editing preset '{selected_name}'...")
+        self._open_preset_form(preset=preset)
+
+    def _open_preset_form(self, preset: dict | None) -> None:
+        is_edit = preset is not None
+        action_state = {"action": "cancelled"}
 
         def on_preset_saved(saved_preset: dict | None) -> None:
+            action_state["action"] = "saved" if saved_preset else "deleted"
             self._reload_presets()
             if self.tray:
                 self.tray.update_menu()
 
             if saved_preset and "name" in saved_preset:
                 self.preset_combo.set(saved_preset["name"])
-                self.update_status(f"Preset '{saved_preset['name']}' created")
+                status_action = "updated" if is_edit else "created"
+                self.update_status(f"Preset '{saved_preset['name']}' {status_action}")
+            elif preset and "name" in preset:
+                self.update_status(f"Preset '{preset['name']}' deleted")
             else:
                 self.update_status("Preset list updated")
 
-        form = PresetForm(self.root, on_save=on_preset_saved)
+        form = PresetForm(self.root, preset=preset, on_save=on_preset_saved)
         form.window.wait_window()
 
-        if form.result is None:
-            self.update_status("Preset creation cancelled")
+        if action_state["action"] == "cancelled":
+            if is_edit:
+                self.update_status("Preset edit cancelled")
+            else:
+                self.update_status("Preset creation cancelled")
 
     def open_settings(self) -> None:
         self.update_status("Opening settings...")

@@ -16,7 +16,7 @@ from src.browser_move.tray import TrayManager
 from src.browser_move.config import load_config
 from src.browser_move.browsers import launch_browser
 from src.browser_move.window_mover import find_browser_window, move_window_to_monitor
-from src.browser_move.monitors import get_external_monitors
+from src.browser_move.monitors import resolve_monitor_for_preset
 
 
 def main() -> int:
@@ -32,7 +32,7 @@ def main() -> int:
         return 1
 
     parser = argparse.ArgumentParser(
-        description="Browser Move Automation - Launch and move browsers to external monitor"
+        description="Browser Move Automation - Launch and move browsers to selected monitor"
     )
     parser.add_argument(
         "--preset",
@@ -77,10 +77,13 @@ def run_preset_direct(preset_name: str) -> bool:
         print(f"Preset '{preset_name}' not found")
         return False
 
-    monitors = get_external_monitors()
-    if not monitors:
-        print("No external monitor detected")
+    target_monitor, target_label, used_fallback = resolve_monitor_for_preset(preset)
+    if not target_monitor:
+        print("No monitor detected")
         return False
+
+    if used_fallback:
+        print(f"Saved monitor not found. Using {target_label}.")
 
     proc = launch_browser(
         preset["browser_type"],
@@ -95,12 +98,15 @@ def run_preset_direct(preset_name: str) -> bool:
 
     hwnd = find_browser_window(preset["browser_type"])
     if hwnd:
-        move_window_to_monitor(hwnd, monitors[0])
-        print(f"Browser moved to external monitor")
-        return True
-    else:
-        print("Failed to find browser window")
+        moved = move_window_to_monitor(hwnd, target_monitor)
+        if moved:
+            print(f"Browser moved to {target_label}")
+            return True
+        print(f"Failed to move browser to {target_label}")
         return False
+
+    print("Failed to find browser window")
+    return False
 
 
 def find_preset_by_name(config: dict, name: str) -> dict | None:

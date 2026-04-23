@@ -1,10 +1,10 @@
 {
   "presets": [
     {
-      "name": "Test",
+      "name": "firefox",
       "browser_type": "firefox",
       "browser_path": "",
-      "url": "http://example.com",
+      "url": "http://172.16.61.210/live/display",
       "kiosk_mode": false
     }
   ],

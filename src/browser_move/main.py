@@ -22,10 +22,6 @@ def main() -> int:
     """Main entry point for ScreenHop."""
     setup_dpi_awareness()
 
-    if not check_single_instance():
-        show_already_running_message()
-        return 1
-
     parser = argparse.ArgumentParser(
         description=f"{APP_NAME} - launch and move Windows apps to a selected display"
     )
@@ -40,6 +36,16 @@ def main() -> int:
         help="Run in background mode (tray only, no GUI window)",
     )
     args = parser.parse_args()
+
+    # Preset-trigger launches are intentionally allowed even if the main app
+    # is already running, so desktop/startup shortcuts can still execute.
+    if args.preset and not args.headless:
+        success = run_preset_direct(args.preset)
+        return 0 if success else 1
+
+    if not check_single_instance():
+        show_already_running_message()
+        return 1
 
     if args.preset:
         success = run_preset_direct(args.preset)

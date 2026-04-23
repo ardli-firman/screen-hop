@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -8,6 +9,25 @@ from src.browser_move import preset_runner
 
 
 class PresetExecutionSmokeTests(unittest.TestCase):
+    @patch.object(main_module, "show_already_running_message")
+    @patch.object(main_module, "check_single_instance", return_value=False)
+    @patch.object(main_module, "run_preset_direct", return_value=True)
+    @patch.object(main_module, "setup_dpi_awareness")
+    def test_main_allows_preset_shortcut_even_when_app_is_already_running(
+        self,
+        _setup_dpi_awareness,
+        run_preset_direct_mock,
+        check_single_instance_mock,
+        show_running_message_mock,
+    ) -> None:
+        with patch.object(sys, "argv", ["screenhop", "--preset", "OBS Studio"]):
+            exit_code = main_module.main()
+
+        self.assertEqual(exit_code, 0)
+        run_preset_direct_mock.assert_called_once_with("OBS Studio")
+        check_single_instance_mock.assert_not_called()
+        show_running_message_mock.assert_not_called()
+
     @patch.object(main_module, "execute_preset", return_value=True)
     @patch.object(
         main_module,

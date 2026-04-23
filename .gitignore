@@ -40,3 +40,4 @@ Thumbs.db
 
 # Generated helper output
 docs/*.cfg
+config.json

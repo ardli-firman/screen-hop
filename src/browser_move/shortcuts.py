@@ -15,6 +15,13 @@ import winshell
 from src.browser_move import APP_NAME
 
 
+def _get_shortcut_name(preset_name: str | None = None) -> str:
+    """Build shortcut filename for app or preset."""
+    if preset_name:
+        return f"{APP_NAME} - {preset_name}.lnk"
+    return f"{APP_NAME}.lnk"
+
+
 def get_desktop_path() -> Path:
     """Get the user's desktop path.
 
@@ -22,6 +29,22 @@ def get_desktop_path() -> Path:
         Path to the desktop folder.
     """
     return Path(winshell.desktop())
+
+
+def get_all_desktop_shortcuts() -> list[Path]:
+    """Get all ScreenHop shortcuts on the desktop."""
+    try:
+        desktop = get_desktop_path()
+        shortcuts = []
+
+        for item in desktop.iterdir():
+            if item.name.startswith(APP_NAME) and item.suffix.lower() == ".lnk":
+                shortcuts.append(item)
+
+        return shortcuts
+    except Exception as exc:
+        print(f"[shortcuts] Failed to enumerate desktop shortcuts: {exc}")
+        return []
 
 
 def get_startup_path() -> Path:
@@ -114,11 +137,12 @@ def create_shortcut(shortcut_path: Path, preset_name: str | None = None) -> bool
         True if shortcut was created successfully, False otherwise.
     """
     try:
+        shortcut_path.parent.mkdir(parents=True, exist_ok=True)
         shell = Dispatch("WScript.Shell")
-        shortcut = shell.CreateShortCut(str(shortcut_path))
+        shortcut = shell.CreateShortcut(str(shortcut_path))
 
         target, args = _get_target_and_args(preset_name)
-        shortcut.Targetpath = target
+        shortcut.TargetPath = target
 
         if args:
             shortcut.Arguments = args
@@ -127,12 +151,13 @@ def create_shortcut(shortcut_path: Path, preset_name: str | None = None) -> bool
 
         icon_path = _get_icon_path()
         if icon_path:
-            shortcut.IconLocation = icon_path
+            shortcut.IconLocation = f"{icon_path},0"
 
-        shortcut.save()
+        shortcut.Save()
         return True
 
-    except Exception:
+    except Exception as exc:
+        print(f"[shortcuts] Failed to create shortcut at '{shortcut_path}': {exc}")
         return False
 
 
@@ -147,19 +172,35 @@ def create_desktop_shortcut(preset_name: str | None = None) -> bool:
     """
     try:
         desktop = get_desktop_path()
-
-        # Create shortcut name
-        if preset_name:
-            shortcut_name = f"{APP_NAME} - {preset_name}.lnk"
-        else:
-            shortcut_name = f"{APP_NAME}.lnk"
-
-        shortcut_path = desktop / shortcut_name
-
+        shortcut_path = desktop / _get_shortcut_name(preset_name)
         return create_shortcut(shortcut_path, preset_name)
 
-    except Exception:
+    except Exception as exc:
+        print(f"[shortcuts] Failed to create desktop shortcut: {exc}")
         return False
+
+
+def ensure_single_desktop_shortcut(preset_name: str) -> bool:
+    """Ensure desktop has only one ScreenHop shortcut for the given preset.
+
+    Removes other ScreenHop desktop shortcuts and creates/updates the selected one.
+    """
+    if not preset_name:
+        return False
+
+    target_name = _get_shortcut_name(preset_name)
+    target_path = get_desktop_path() / target_name
+
+    for shortcut in get_all_desktop_shortcuts():
+        if shortcut.name == target_name:
+            continue
+        try:
+            shortcut.unlink()
+        except Exception as exc:
+            print(f"[shortcuts] Failed to remove desktop shortcut '{shortcut}': {exc}")
+            return False
+
+    return create_shortcut(target_path, preset_name)
 
 
 def is_in_startup(preset_name: str | None = None) -> bool:
@@ -171,15 +212,13 @@ def is_in_startup(preset_name: str | None = None) -> bool:
     Returns:
         True if shortcut exists in startup folder.
     """
-    startup = get_startup_path()
-
-    if preset_name:
-        shortcut_name = f"{APP_NAME} - {preset_name}.lnk"
-    else:
-        shortcut_name = f"{APP_NAME}.lnk"
-
-    shortcut_path = startup / shortcut_name
-    return shortcut_path.exists()
+    try:
+        startup = get_startup_path()
+        shortcut_path = startup / _get_shortcut_name(preset_name)
+        return shortcut_path.exists()
+    except Exception as exc:
+        print(f"[shortcuts] Failed to check startup shortcut: {exc}")
+        return False
 
 
 def add_to_startup(preset_name: str | None = None) -> bool:
@@ -193,18 +232,35 @@ def add_to_startup(preset_name: str | None = None) -> bool:
     """
     try:
         startup = get_startup_path()
-
-        if preset_name:
-            shortcut_name = f"{APP_NAME} - {preset_name}.lnk"
-        else:
-            shortcut_name = f"{APP_NAME}.lnk"
-
-        shortcut_path = startup / shortcut_name
-
+        shortcut_path = startup / _get_shortcut_name(preset_name)
         return create_shortcut(shortcut_path, preset_name)
 
-    except Exception:
+    except Exception as exc:
+        print(f"[shortcuts] Failed to add startup shortcut: {exc}")
         return False
+
+
+def ensure_single_startup_shortcut(preset_name: str) -> bool:
+    """Ensure startup has only one ScreenHop shortcut for the given preset.
+
+    Removes other ScreenHop startup shortcuts and creates/updates the selected one.
+    """
+    if not preset_name:
+        return False
+
+    target_name = _get_shortcut_name(preset_name)
+    target_path = get_startup_path() / target_name
+
+    for shortcut in get_all_startup_shortcuts():
+        if shortcut.name == target_name:
+            continue
+        try:
+            shortcut.unlink()
+        except Exception as exc:
+            print(f"[shortcuts] Failed to remove startup shortcut '{shortcut}': {exc}")
+            return False
+
+    return create_shortcut(target_path, preset_name)
 
 
 def remove_from_startup(preset_name: str | None = None) -> bool:
@@ -218,20 +274,15 @@ def remove_from_startup(preset_name: str | None = None) -> bool:
     """
     try:
         startup = get_startup_path()
-
-        if preset_name:
-            shortcut_name = f"{APP_NAME} - {preset_name}.lnk"
-        else:
-            shortcut_name = f"{APP_NAME}.lnk"
-
-        shortcut_path = startup / shortcut_name
+        shortcut_path = startup / _get_shortcut_name(preset_name)
 
         if shortcut_path.exists():
             shortcut_path.unlink()
 
         return True
 
-    except Exception:
+    except Exception as exc:
+        print(f"[shortcuts] Failed to remove startup shortcut: {exc}")
         return False
 
 
@@ -258,14 +309,18 @@ def get_all_startup_shortcuts() -> list[Path]:
     Returns:
         List of paths to ScreenHop shortcuts in startup folder.
     """
-    startup = get_startup_path()
-    shortcuts = []
+    try:
+        startup = get_startup_path()
+        shortcuts = []
 
-    for item in startup.iterdir():
-        if item.name.startswith(APP_NAME) and item.suffix == ".lnk":
-            shortcuts.append(item)
+        for item in startup.iterdir():
+            if item.name.startswith(APP_NAME) and item.suffix == ".lnk":
+                shortcuts.append(item)
 
-    return shortcuts
+        return shortcuts
+    except Exception as exc:
+        print(f"[shortcuts] Failed to enumerate startup shortcuts: {exc}")
+        return []
 
 
 def remove_all_startup_shortcuts() -> int:

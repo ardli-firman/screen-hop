@@ -293,7 +293,16 @@ class MainWindow:
             self.config.update(settings)
             self.update_status("Settings applied")
 
-        SettingsWindow(self.root, on_apply=on_settings_applied)
+        current_preset = self.preset_combo.get().strip()
+        if current_preset == "Select Preset":
+            current_preset = ""
+
+        SettingsWindow(
+            self.root,
+            on_apply=on_settings_applied,
+            preset_names=self._get_preset_names(),
+            selected_preset=current_preset,
+        )
 
     def update_status(self, message: str) -> None:
         """Update status bar message.

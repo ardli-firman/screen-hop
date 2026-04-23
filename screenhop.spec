@@ -14,7 +14,6 @@ a = Analysis(
     binaries=[],
     datas=[
         ('icon.ico', '.'),
-        ('config.json', '.'),
     ],
     hiddenimports=[
         'customtkinter',

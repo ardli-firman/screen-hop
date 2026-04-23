@@ -3,10 +3,13 @@
 
 #define MyAppName "ScreenHop"
 #define MyAppExeName "ScreenHop.exe"
-#define MyPublisher "ScreenHop"
 
 #ifndef AppVersion
   #define AppVersion "1.0.0"
+#endif
+
+#ifndef AppPublisher
+  #define AppPublisher "ScreenHop"
 #endif
 
 #ifndef DistDir
@@ -22,7 +25,7 @@
 AppId={{6B171D1C-4D62-4471-A3BF-5A2EF7F0F804}
 AppName={#MyAppName}
 AppVersion={#AppVersion}
-AppPublisher={#MyPublisher}
+AppPublisher={#AppPublisher}
 DefaultDirName={localappdata}\ScreenHop
 DefaultGroupName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}

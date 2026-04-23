@@ -5,7 +5,11 @@
       "browser_type": "firefox",
       "browser_path": "",
       "url": "http://172.16.61.210/live/display",
-      "kiosk_mode": false
+      "kiosk_mode": false,
+      "display_id": "-1920:0:1920:1080:0",
+      "display_name": "Display 1 (\\\\.\\DISPLAY1) - 1920x1080 [Secondary]",
+      "monitor_id": "-1920:0:1920:1080:0",
+      "monitor_name": "Display 1 (\\\\.\\DISPLAY1) - 1920x1080 [Secondary]"
     }
   ],
   "theme": "System",

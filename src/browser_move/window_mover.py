@@ -4,6 +4,8 @@ Uses win32gui to locate browser windows by class name with retry logic
 for handling browser startup delays.
 """
 
+from __future__ import annotations
+
 import time
 from typing import Any
 

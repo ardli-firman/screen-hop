@@ -1,5 +1,7 @@
 """Main window UI for browser move automation."""
 
+from __future__ import annotations
+
 import customtkinter as ctk
 from typing import Any
 

@@ -1,5 +1,7 @@
 """Status bar component for browser move automation."""
 
+from __future__ import annotations
+
 import customtkinter as ctk
 from datetime import datetime
 from typing import Literal

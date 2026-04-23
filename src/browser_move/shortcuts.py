@@ -4,6 +4,8 @@ This module provides functions to create desktop shortcuts and manage
 startup folder shortcuts for the browser move automation application.
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 

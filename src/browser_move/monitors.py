@@ -1,5 +1,7 @@
 """Display detection and display-selection helpers."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 

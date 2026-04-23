@@ -1,5 +1,7 @@
 """Preset management form UI for browser_move."""
 
+from __future__ import annotations
+
 import re
 import customtkinter as ctk
 from tkinter import messagebox

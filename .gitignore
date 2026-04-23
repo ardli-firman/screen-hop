@@ -11,12 +11,18 @@ build/
 # Unit test / coverage reports
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 
 # Virtual environments
 venv/
 env/
 .venv/
+
+# Tool caches
+.ruff_cache/
+.sisyphus/
+.mypy_cache/
 
 # IDE
 .vscode/
@@ -27,3 +33,10 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Runtime artifacts
+*.log
+*.tmp
+
+# Generated helper output
+docs/*.cfg

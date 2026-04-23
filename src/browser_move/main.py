@@ -1,5 +1,7 @@
 """Entry point for Browser Move Automation application."""
 
+from __future__ import annotations
+
 import argparse
 import sys
 import time

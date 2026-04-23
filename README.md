@@ -26,6 +26,8 @@ A Windows GUI application to automatically launch browsers and move them to exte
    pip install -r requirements.txt
    ```
 
+   For Windows 7 target builds, use Python `3.8.x` environment.
+
 3. Run in development mode:
    ```bash
    python -m src.browser_move.main
@@ -63,6 +65,11 @@ Build standalone executable with PyInstaller:
 ```bash
 pyinstaller browser_move.spec
 ```
+
+For Windows 7 compatibility, build with:
+
+- Python `3.8.x`
+- `pyinstaller` `<5.0` (already pinned in `requirements.txt`)
 
 Output will be in `dist/browser_move/` directory.
 
@@ -103,9 +110,14 @@ Configuration is stored in `config.json` in the application directory:
 
 ## Requirements
 
-- Windows 10/11
-- Python 3.11+ (for development)
+- Windows 7/10/11
+- Python 3.8.x (recommended for build/runtime compatibility, especially Windows 7)
 - Firefox, Chrome, or Edge installed
+
+## Windows 7 Notes
+
+- Windows 7 is end-of-life and no longer receives security updates from Microsoft.
+- Build the executable on a machine with Python `3.8.x` and install Microsoft Visual C++ Redistributable if required on target machines.
 
 ## License
 

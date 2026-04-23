@@ -6,7 +6,7 @@ from tkinter import messagebox
 from typing import Callable
 from src.browser_move.config import load_config, save_config
 from src.browser_move.browsers import detect_browser_path
-from src.browser_move.monitors import get_monitor_choices
+from src.browser_move.monitors import get_display_choices
 
 
 class PresetForm:
@@ -29,8 +29,8 @@ class PresetForm:
         self.preset = preset
         self.on_save = on_save
         self.result = None
-        self._monitor_id_by_label: dict[str, str] = {}
-        self._monitor_label_by_id: dict[str, str] = {}
+        self._display_id_by_label: dict[str, str] = {}
+        self._display_label_by_id: dict[str, str] = {}
 
         self.setup_ui()
 
@@ -95,7 +95,7 @@ class PresetForm:
 
         monitor_label = ctk.CTkLabel(
             form_frame,
-            text="Target Extended Monitor *",
+            text="Target Display *",
             font=ctk.CTkFont(size=13, weight="bold"),
             anchor="w",
         )
@@ -264,39 +264,43 @@ class PresetForm:
         self.path_entry.insert(0, self.preset.get("browser_path", ""))
         self.kiosk_var.set(self.preset.get("kiosk_mode", False))
 
-        saved_monitor_id = str(self.preset.get("monitor_id", "") or "").strip()
-        saved_monitor_name = str(self.preset.get("monitor_name", "") or "").strip()
+        saved_display_id = str(
+            self.preset.get("display_id", self.preset.get("monitor_id", "")) or ""
+        ).strip()
+        saved_display_name = str(
+            self.preset.get("display_name", self.preset.get("monitor_name", "")) or ""
+        ).strip()
 
-        if saved_monitor_id and saved_monitor_id in self._monitor_label_by_id:
-            self.monitor_combo.set(self._monitor_label_by_id[saved_monitor_id])
+        if saved_display_id and saved_display_id in self._display_label_by_id:
+            self.monitor_combo.set(self._display_label_by_id[saved_display_id])
             return
 
-        if saved_monitor_name and saved_monitor_name in self._monitor_id_by_label:
-            self.monitor_combo.set(saved_monitor_name)
+        if saved_display_name and saved_display_name in self._display_id_by_label:
+            self.monitor_combo.set(saved_display_name)
 
     def refresh_monitor_choices(self) -> None:
         """Reload monitor list from system and refresh monitor dropdown."""
         current_label = self.monitor_combo.get() if hasattr(self, "monitor_combo") else ""
 
-        self._monitor_id_by_label.clear()
-        self._monitor_label_by_id.clear()
+        self._display_id_by_label.clear()
+        self._display_label_by_id.clear()
 
-        choices = get_monitor_choices()
+        choices = get_display_choices()
         if not choices:
             self.monitor_combo.configure(
-                values=["No extended monitor detected"], state="disabled"
+                values=["No multiple display detected"], state="disabled"
             )
-            self.monitor_combo.set("No extended monitor detected")
+            self.monitor_combo.set("No multiple display detected")
             return
 
         labels: list[str] = []
-        for monitor_id, label in choices:
+        for display_id, label in choices:
             labels.append(label)
-            self._monitor_id_by_label[label] = monitor_id
-            self._monitor_label_by_id[monitor_id] = label
+            self._display_id_by_label[label] = display_id
+            self._display_label_by_id[display_id] = label
 
         self.monitor_combo.configure(values=labels, state="readonly")
-        if current_label in self._monitor_id_by_label:
+        if current_label in self._display_id_by_label:
             self.monitor_combo.set(current_label)
         else:
             self.monitor_combo.set(labels[0])
@@ -326,7 +330,7 @@ class PresetForm:
     def validate_form(self) -> tuple[bool, str]:
         name = self.name_entry.get().strip()
         url = self.url_entry.get().strip()
-        selected_monitor = self.monitor_combo.get().strip()
+        selected_display = self.monitor_combo.get().strip()
 
         if not name:
             return False, "Preset name is required"
@@ -346,8 +350,8 @@ class PresetForm:
         if not self.validate_url(url):
             return False, "URL must start with http:// or https://"
 
-        if selected_monitor not in self._monitor_id_by_label:
-            return False, "Please select a valid monitor target"
+        if selected_display not in self._display_id_by_label:
+            return False, "Please select a valid display target"
 
         return True, ""
 
@@ -364,7 +368,10 @@ class PresetForm:
             "browser_path": self.path_entry.get().strip(),
             "url": self.url_entry.get().strip(),
             "kiosk_mode": self.kiosk_var.get(),
-            "monitor_id": self._monitor_id_by_label[self.monitor_combo.get().strip()],
+            "display_id": self._display_id_by_label[self.monitor_combo.get().strip()],
+            "display_name": self.monitor_combo.get().strip(),
+            # Keep legacy keys for backward compatibility.
+            "monitor_id": self._display_id_by_label[self.monitor_combo.get().strip()],
             "monitor_name": self.monitor_combo.get().strip(),
         }
 

@@ -7,8 +7,12 @@ from src.browser_move.config import load_config
 from src.browser_move.settings_window import SettingsWindow
 from src.browser_move.preset_form import PresetForm
 from src.browser_move.browsers import launch_browser
-from src.browser_move.window_mover import find_browser_window, move_window_to_monitor
-from src.browser_move.monitors import resolve_monitor_for_preset
+from src.browser_move.window_mover import (
+    find_browser_window,
+    move_window_to_monitor,
+    list_browser_windows,
+)
+from src.browser_move.monitors import resolve_display_for_preset
 
 
 class MainWindow:
@@ -179,19 +183,21 @@ class MainWindow:
         return None
 
     def _execute_preset(self, preset: dict) -> bool:
-        target_monitor, target_label, used_fallback = resolve_monitor_for_preset(preset)
-        if not target_monitor:
-            self.update_status("No extended monitor detected (set Display mode to Extend)")
+        target_display, target_label, used_fallback = resolve_display_for_preset(preset)
+        if not target_display:
+            self.update_status("No multiple display detected (set Display mode to Extend)")
             return False
 
         if used_fallback:
             self.update_status(
-                f"Saved monitor not found, using {target_label}. Launching {preset['browser_type']}..."
+                f"Saved display not found, using {target_label}. Launching {preset['browser_type']}..."
             )
         else:
             self.update_status(
                 f"Launching {preset['browser_type']} on {target_label}..."
             )
+
+        existing_hwnds = set(list_browser_windows(preset["browser_type"]))
 
         proc = launch_browser(
             preset["browser_type"],
@@ -204,14 +210,27 @@ class MainWindow:
             self.update_status("Failed to launch browser")
             return False
 
-        self.update_status("Finding browser window...")
+        self.update_status("Finding launched browser window...")
 
-        hwnd = find_browser_window(preset["browser_type"])
+        # Prefer newly appeared windows after launch; fallback to any browser window.
+        hwnd = find_browser_window(
+            preset["browser_type"], timeout=6.0, exclude_hwnds=existing_hwnds
+        )
+        if not hwnd:
+            hwnd = find_browser_window(preset["browser_type"], timeout=4.0)
         if hwnd:
-            moved = move_window_to_monitor(hwnd, target_monitor)
+            moved = move_window_to_monitor(hwnd, target_display)
             if moved:
                 self.update_status(f"Browser moved to {target_label}")
                 return True
+            # Fallback: browser may have spawned a different top-level window.
+            for alt_hwnd in list_browser_windows(preset["browser_type"]):
+                if alt_hwnd == hwnd:
+                    continue
+                if move_window_to_monitor(alt_hwnd, target_display):
+                    self.update_status(f"Browser moved to {target_label}")
+                    return True
+
             self.update_status(f"Failed to move browser to {target_label}")
             return False
 

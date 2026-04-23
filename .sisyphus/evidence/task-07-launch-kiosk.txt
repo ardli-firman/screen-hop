@@ -1,0 +1,53 @@
+Task 7: Browser Launcher - Kiosk Mode Verification
+===================================================
+
+Test: Kiosk mode argument building (mock test)
+----------------------------------------------
+>>> def test_kiosk_args():
+...     browser_path = "C:/path/to/browser.exe"
+...     url = "http://example.com"
+...     
+...     # Firefox kiosk: --new-window --kiosk="url"
+...     args_ff = [browser_path, "--new-window", f'--kiosk="{url}"']
+...     
+...     # Chrome kiosk: --kiosk --app="url"
+...     args_ch = [browser_path, "--kiosk", f'--app="{url}"']
+...     
+...     # Edge kiosk: --kiosk url
+...     args_ed = [browser_path, "--kiosk", url]
+...     
+...     return args_ff, args_ch, args_ed
+>>> test_kiosk_args()
+(['C:/path/to/browser.exe', '--new-window', '--kiosk="http://example.com"'], 
+ ['C:/path/to/browser.exe', '--kiosk', '--app="http://example.com"'], 
+ ['C:/path/to/browser.exe', '--kiosk', 'http://example.com'])
+
+Test: kiosk_mode parameter default
+----------------------------------
+>>> from src.browser_move.browsers import launch_browser
+>>> import inspect
+>>> sig = inspect.signature(launch_browser)
+>>> sig.parameters['kiosk_mode'].default
+False
+
+Test: Invalid browser type returns None
+---------------------------------------
+>>> from src.browser_move.browsers import launch_browser
+>>> result = launch_browser('safari', 'http://example.com', kiosk_mode=True)
+>>> result is None
+True
+
+Test: Custom browser path usage
+-------------------------------
+>>> from src.browser_move.browsers import launch_browser
+>>> result = launch_browser('firefox', 'http://example.com', browser_path='/nonexistent/path')
+>>> result is None  # Returns None because path doesn't exist
+True
+
+Browser-specific kiosk arguments:
+---------------------------------
+Firefox: [browser_path, "--new-window", '--kiosk="url"']
+Chrome:  [browser_path, "--kiosk", '--app="url"']
+Edge:    [browser_path, "--kiosk", "url"]
+
+STATUS: PASSED

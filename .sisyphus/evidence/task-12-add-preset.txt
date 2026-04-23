@@ -1,0 +1,17 @@
+Task 12: PresetForm component created successfully
+
+Features implemented:
+- PresetForm class with __init__(parent, preset, on_save)
+- Modal CTkToplevel with grab_set() for modal behavior
+- Form fields: Name entry, Browser dropdown (firefox/chrome/edge), URL entry, Path entry, Kiosk checkbox
+- Auto-detect path button using browsers.detect_browser_path()
+- Save/Update button with validation
+- Delete button with CTkMessagebox confirmation
+- URL validation with regex ^https?://
+- Duplicate name validation
+- Callback to refresh parent window preset list
+
+Verification:
+- Import test: SUCCESS
+- URL validation test: SUCCESS
+- File location: src/browser_move/preset_form.py

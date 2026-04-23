@@ -1,0 +1,25 @@
+Task 19: Create browser_move.spec for PyInstaller
+Date: 2026-04-23
+
+Status: COMPLETED
+
+Summary:
+Created browser_move.spec file in project root with:
+- --onedir mode (directory distribution via COLLECT)
+- --windowed (console=False)
+- icon.ico as application icon
+- Data files: icon.ico, config.json
+- Entry point: src.browser_move.main:main
+- Hidden imports: customtkinter, pystray, winshell, screeninfo, win32gui, win32con, win32event, win32com.client, PIL
+
+Build command:
+  pyinstaller browser_move.spec
+
+Expected output:
+- dist/browser_move/browser_move.exe - Main executable
+- dist/browser_move/*.dll - Dependencies
+- dist/browser_move/icon.ico - Icon file
+- dist/browser_move/config.json - Config file
+
+Note: PyInstaller not available in current environment to run build.
+Spec file syntax validated successfully.

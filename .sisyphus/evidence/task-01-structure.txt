@@ -1,0 +1,48 @@
+# Task 01 - Project Structure Evidence
+# Generated: 2026-04-23
+
+## Created Files:
+
+### src/browser_move/__init__.py
+"""Browser display automation for external monitors."""
+
+__version__ = "1.0.0"
+
+### tests/__init__.py
+# Test package placeholder
+
+### setup.py
+from setuptools import setup
+
+setup()
+
+### .gitignore
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Unit test / coverage reports
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

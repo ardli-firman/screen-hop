@@ -1,0 +1,13 @@
+{
+  "presets": [
+    {
+      "name": "Test",
+      "browser_type": "firefox",
+      "browser_path": "",
+      "url": "http://example.com",
+      "kiosk_mode": false
+    }
+  ],
+  "theme": "System",
+  "auto_start": false
+}

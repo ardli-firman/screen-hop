@@ -1,0 +1,16 @@
+Task 03 - Config Save Test
+===========================
+Date: 2026-04-23
+
+Test Command:
+  python -c "from src.browser_move.config import save_config, load_config; save_config({'presets': [{'name': 'test', 'browser_type': 'firefox', 'browser_path': 'C:/test', 'url': 'http://test.com', 'kiosk_mode': False}], 'theme': 'Dark', 'auto_start': True}); c = load_config(); print(len(c['presets']), c['theme'], c['auto_start'])"
+
+Output:
+  1 Dark True
+
+Result: PASS
+- save_config() successfully writes to config.json
+- Atomic write: writes to .tmp, then os.replace()
+- Config saved at correct path: D:\_2026\PROJECTS\move-window-automation\config.json
+- load_config() retrieves saved data correctly
+- Preset structure validated: name, browser_type, browser_path, url, kiosk_mode

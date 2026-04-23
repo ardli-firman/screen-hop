@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "browser_move"
+version = "1.0.0"
+description = "Browser display automation for external monitors"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+browser-move = "browser_move.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

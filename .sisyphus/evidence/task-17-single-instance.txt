@@ -1,0 +1,22 @@
+Task 17: Single Instance Lock
+=============================
+Date: 2026-04-23
+
+File Created: src/browser_move/single_instance.py
+
+Implementation:
+- check_single_instance() uses win32event.CreateMutex
+- Named mutex: "BrowserMoveAppMutex"
+- Returns True if got lock, False if another instance exists
+- Check uses win32api.GetLastError() for ERROR_ALREADY_EXISTS (183)
+- show_already_running_message() displays warning dialog
+
+Verification:
+- Python syntax check: PASSED
+- Module import test: SKIPPED (pywin32 not installed in test environment)
+- Actual functionality requires pywin32 and Windows environment
+
+Notes:
+- Code matches specification exactly
+- Uses mutex-based locking (not file-based)
+- Mutex handle kept alive to maintain lock until process exits

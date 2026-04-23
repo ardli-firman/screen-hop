@@ -1,0 +1,50 @@
+Task 16 Evidence: Startup Shortcut Management
+==============================================
+Timestamp: 2026-04-23
+
+Test 1: Check startup status
+-----------------------------
+Command: is_in_startup()
+Result: False (no shortcut exists initially)
+
+Test 2: Add to startup
+----------------------
+Command: add_to_startup()
+Result: True
+Shortcut created at: C:\Users\kulit\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\BrowserMove.lnk
+is_in_startup() after add: True
+
+Test 3: List startup shortcuts
+------------------------------
+Command: get_all_startup_shortcuts()
+Result: ['BrowserMove.lnk']
+
+Test 4: Remove from startup
+---------------------------
+Command: remove_from_startup()
+Result: True
+is_in_startup() after remove: False
+
+Test 5: Toggle startup
+----------------------
+Command: toggle_startup()
+Result: True (adds when not present)
+is_in_startup() after toggle: True
+
+Command: toggle_startup()
+Result: True (removes when present)
+is_in_startup() after toggle: False
+
+Functions Implemented:
+----------------------
+- get_startup_path() -> Uses winshell.folder("startup")
+- is_in_startup(preset_name) -> Checks if .lnk exists
+- add_to_startup(preset_name) -> Creates startup shortcut
+- remove_from_startup(preset_name) -> Deletes startup shortcut
+- toggle_startup(preset_name) -> Adds/removes based on presence
+- get_all_startup_shortcuts() -> Lists all BrowserMove shortcuts
+- remove_all_startup_shortcuts() -> Removes all BrowserMove shortcuts
+
+Startup Path: C:\Users\kulit\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
+
+Status: PASSED

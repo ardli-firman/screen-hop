@@ -1,0 +1,90 @@
+=== Task 2: pip install -r requirements.txt ===
+
+Defaulting to user installation because normal site-packages is not writeable
+Collecting customtkinter>=5.0 (from -r requirements.txt (line 1))
+  Downloading customtkinter-5.2.2-py3-none-any.whl.metadata (677 bytes)
+Collecting pywin32>=300 (from -r requirements.txt (line 2))
+  Downloading pywin32-311-cp313-cp313-win_amd64.whl (10 kB)
+Collecting screeninfo>=0.8 (from -r requirements.txt (line 3))
+  Downloading screeninfo-0.8.1-py3-none-any.whl (2.9 kB)
+Collecting pystray>=0.19 (from -r requirements.txt (line 4))
+  Downloading pystray-0.19.5-py2.py3-none-any.whl (9.4 kB)
+Collecting Pillow>=10.0 (from -r requirements.txt (line 5))
+  Downloading pillow-12.2.0-cp313-cp313-win_amd64.whl (9.0 kB)
+Collecting winshell>=0.6 (from -r requirements.txt (line 6))
+  Downloading winshell-0.6.zip (10 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting pyinstaller>=6.0 (from -r requirements.txt (line 7))
+  Downloading pyinstaller-6.20.0-py3-none-win_amd64.whl (8.5 kB)
+Collecting darkdetect (from customtkinter>=5.0->-r requirements.txt (line 1))
+  Downloading darkdetect-0.8.0-py3-none-any.whl (3.6 kB)
+Collecting packaging (from customtkinter>=5.0->-r requirements.txt (line 1))
+  Using cached packaging-26.1-py3-none-any.whl (3.5 kB)
+Collecting six (from pystray>=0.19->-r requirements.txt (line 4))
+  Downloading six-1.17.0-py2.py3-none-any.whl (1.7 kB)
+Collecting altgraph (from pyinstaller>=6.0->-r requirements.txt (line 7))
+  Downloading altgraph-0.17.5-py2.py3-none-any.whl (7.7 kB)
+Collecting pefile>=2022.5.30 (from pyinstaller>=6.0->-r requirements.txt (line 7))
+  Downloading pefile-2024.8.26-py3-none-any.whl (1.4 kB)
+Collecting pyinstaller-hooks-contrib>=2026.4 (from pyinstaller>=6.0->-r requirements.txt (line 7))
+  Downloading pyinstaller_hooks_contrib-2026.4-py3-none-any.whl (16 kB)
+Collecting pywin32-ctypes>=0.2.1 (from pyinstaller>=6.0->-r requirements.txt (line 7))
+  Downloading pywin32_ctypes-0.2.3-py3-none-any.whl (30 kB)
+Collecting setuptools>=42.0.0 (from pyinstaller>=6.0->-r requirements.txt (line 7))
+  Using cached setuptools-82.0.1-py3-none-any.whl (6.5 kB)
+Downloading customtkinter-5.2.2-py3-none-any.whl (296 kB)
+Downloading pywin32-311-cp313-cp313-win_amd64.whl (9.5 MB)
+   ---------------------------------------- 9.5/9.5 MB 3.4 MB/s  0:00:02
+Downloading screeninfo-0.8.1-py3-none-any.whl (12 kB)
+Downloading pystray-0.19.5-py2.py3-none-any.whl (49 kB)
+Downloading pillow-12.2.0-cp313-cp313-win_amd64.whl (7.1 MB)
+   ---------------------------------------- 7.1/7.1 MB 3.5 MB/s  0:00:02
+Downloading pyinstaller-6.20.0-py3-none-win_amd64.whl (1.4 MB)
+   ---------------------------------------- 1.4/1.4 MB 3.2 MB/s  0:00:00
+Using cached packaging-26.1-py3-none-any.whl (95 kB)
+Downloading pefile-2024.8.26-py3-none-any.whl (74 kB)
+Downloading pyinstaller_hooks_contrib-2026.4-py3-none-any.whl (455 kB)
+Downloading pywin32_ctypes-0.2.3-py3-none-any.whl (30 kB)
+Using cached setuptools-82.0.1-py3-none-any.whl (1.0 MB)
+Downloading altgraph-0.17.5-py2.py3-none-any.whl (21 kB)
+Downloading darkdetect-0.8.0-py3-none-any.whl (9.0 kB)
+Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+Building wheels for collected packages: winshell
+  Building wheel for winshell (pyproject.toml): started
+  Building wheel for winshell (pyproject.toml): finished with status 'done'
+  Created wheel for winshell: filename=winshell-0.6-py3-none-any.whl size=9434 sha256=8a3adee4c0d80e0c20dccd3f331e12b13b863ece5bf61dc5bd3fd80562e54299
+  Stored in directory: c:\users\kulit\appdata\local\pip\cache\wheels\34\db\65\d412feb2abc9688299bb8eea2d62f895fe9e3b378efaf68cfb
+Successfully built winshell
+Installing collected packages: winshell, pywin32, altgraph, six, setuptools, screeninfo, pywin32-ctypes, Pillow, pefile, packaging, darkdetect, pystray, pyinstaller-hooks-contrib, customtkinter, pyinstaller
+  WARNING: The scripts pywin32_postinstall.exe and pywin32_testall.exe are installed in 'C:\Users\kulit\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\Scripts' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+  WARNING: The scripts pyi-archive_viewer.exe, pyi-bindepend.exe, pyi-grab_version.exe, pyi-makespec.exe, pyi-set_version.exe and pyinstaller.exe are installed in 'C:\Users\kulit\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\Scripts' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+
+Successfully installed Pillow-12.2.0 altgraph-0.17.5 customtkinter-5.2.2 darkdetect-0.8.0 packaging-26.1 pefile-2024.8.26 pyinstaller-6.20.0 pyinstaller-hooks-contrib-2026.4 pystray-0.19.5 pywin32-311 pywin32-ctypes-0.2.3 screeninfo-0.8.1 setuptools-82.0.1 six-1.17.0 winshell-0.6
+
+=== Verification: pip show ===
+
+All 7 packages verified:
+- customtkinter: 5.2.2
+- pywin32: 311
+- screeninfo: 0.8.1
+- pystray: 0.19.5
+- Pillow: 12.2.0
+- winshell: 0.6
+- pyinstaller: 6.20.0
+
+=== config.json validation ===
+
+{
+    "presets": [],
+    "theme": "System",
+    "auto_start": false
+}
+
+RESULT: SUCCESS - All dependencies installed and verified

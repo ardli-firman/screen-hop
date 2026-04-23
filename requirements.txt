@@ -1,0 +1,7 @@
+customtkinter>=5.0
+pywin32>=300
+screeninfo>=0.8
+pystray>=0.19
+Pillow>=10.0
+winshell>=0.6
+pyinstaller>=6.0

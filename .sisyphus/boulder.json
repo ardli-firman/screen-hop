@@ -1,0 +1,95 @@
+{
+  "active_plan": "D:\\_2026\\PROJECTS\\move-window-automation\\.sisyphus\\plans\\window-move-automation.md",
+  "started_at": "2026-04-23T02:39:51.183Z",
+  "session_ids": [
+    "ses_247cabea2ffeNk0woZpYnZI7dv"
+  ],
+  "session_origins": {
+    "ses_247cabea2ffeNk0woZpYnZI7dv": "direct"
+  },
+  "plan_name": "window-move-automation",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Project Structure Setup (src/ Layout)",
+      "session_id": "ses_247c86a44ffeMK7U4RJl7jS4N4",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-23T02:44:54.312Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Requirements.txt + Dependencies",
+      "session_id": "ses_247c40469ffeSgLjkgzaQsCPMu",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-23T02:51:05.082Z"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "Browser Path Detection Module",
+      "session_id": "ses_247beead2ffepbG8UrAXbhJMov",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-23T02:55:03.177Z"
+    },
+    "todo:7": {
+      "task_key": "todo:7",
+      "task_label": "7",
+      "task_title": "Browser Launcher Module",
+      "session_id": "ses_247b8ae8affe51B9VRo7wmr2La",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-23T03:01:52.182Z"
+    },
+    "todo:8": {
+      "task_key": "todo:8",
+      "task_label": "8",
+      "task_title": "Window Finder Module",
+      "session_id": "ses_247b53edbffeWSBtSa9OnMJGDB",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-23T03:06:11.724Z"
+    },
+    "todo:11": {
+      "task_key": "todo:11",
+      "task_label": "11",
+      "task_title": "Main GUI Window",
+      "session_id": "ses_247aa594cffePCp6X8HoOQ0C1X",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-04-23T03:19:09.959Z"
+    },
+    "todo:15": {
+      "task_key": "todo:15",
+      "task_label": "15",
+      "task_title": "System Tray Integration",
+      "session_id": "ses_2479d3432ffePkWQyfkoq2Wq2M",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-23T03:34:09.940Z"
+    },
+    "todo:19": {
+      "task_key": "todo:19",
+      "task_label": "19",
+      "task_title": "PyInstaller Spec File",
+      "session_id": "ses_247963f10ffe1rGZ2hYLDl3X7J",
+      "agent": "Sisyphus-Junior",
+      "category": "writing",
+      "updated_at": "2026-04-23T03:38:52.188Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — `oracle`",
+      "session_id": "ses_2478c24ffffe6u0v4MO5Q8ay8w",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-23T04:03:08.160Z"
+    }
+  }
+}

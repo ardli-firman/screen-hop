@@ -5,6 +5,7 @@ from typing import Callable, Any
 
 from src.browser_move.config import load_config
 from src.browser_move.settings_window import SettingsWindow
+from src.browser_move.preset_form import PresetForm
 from src.browser_move.browsers import launch_browser
 from src.browser_move.window_mover import find_browser_window, move_window_to_monitor
 from src.browser_move.monitors import get_external_monitors
@@ -201,6 +202,23 @@ class MainWindow:
     def new_preset(self) -> None:
         self.update_status("Creating new preset...")
 
+        def on_preset_saved(saved_preset: dict | None) -> None:
+            self._reload_presets()
+            if self.tray:
+                self.tray.update_menu()
+
+            if saved_preset and "name" in saved_preset:
+                self.preset_combo.set(saved_preset["name"])
+                self.update_status(f"Preset '{saved_preset['name']}' created")
+            else:
+                self.update_status("Preset list updated")
+
+        form = PresetForm(self.root, on_save=on_preset_saved)
+        form.window.wait_window()
+
+        if form.result is None:
+            self.update_status("Preset creation cancelled")
+
     def open_settings(self) -> None:
         self.update_status("Opening settings...")
 
@@ -218,3 +236,22 @@ class MainWindow:
         """
         self._status_text.set(message)
         self.status_label.configure(text=message)
+
+    def _reload_presets(self) -> None:
+        """Reload presets from config and refresh preset-related UI."""
+        self.config = load_config()
+        preset_names = self._get_preset_names()
+
+        combo_values = preset_names if preset_names else ["Select Preset"]
+        self.preset_combo.configure(values=combo_values)
+
+        if preset_names:
+            current = self._current_preset_var.get()
+            if current in preset_names:
+                self.preset_combo.set(current)
+            else:
+                self.preset_combo.set(preset_names[0])
+        else:
+            self.preset_combo.set("Select Preset")
+
+        self.preset_count_label.configure(text=f"{len(preset_names)} preset(s) available")

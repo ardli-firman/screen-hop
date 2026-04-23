@@ -1,4 +1,4 @@
-"""Entry point for Browser Move Automation application."""
+"""Entry point for the ScreenHop application."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import time
 
 import customtkinter as ctk
 
+from src.browser_move import APP_NAME
 from src.browser_move.dpi import setup_dpi_awareness
 from src.browser_move.single_instance import (
     check_single_instance,
@@ -26,7 +27,7 @@ from src.browser_move.monitors import resolve_display_for_preset
 
 
 def main() -> int:
-    """Main entry point for Browser Move Automation.
+    """Main entry point for ScreenHop.
 
     Returns:
         Exit code: 0 for success, 1 for error/already running
@@ -38,7 +39,7 @@ def main() -> int:
         return 1
 
     parser = argparse.ArgumentParser(
-        description="Browser Move Automation - Launch and move browsers to selected monitor"
+        description=f"{APP_NAME} - Launch and move browsers to a selected monitor"
     )
     parser.add_argument(
         "--preset",

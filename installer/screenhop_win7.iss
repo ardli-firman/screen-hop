@@ -1,16 +1,16 @@
-; Inno Setup installer script for Browser Move Automation
+; Inno Setup installer script for ScreenHop
 ; Targets Windows 7 SP1 and newer.
 
-#define MyAppName "Browser Move Automation"
-#define MyAppExeName "browser_move.exe"
-#define MyPublisher "Browser Move Automation"
+#define MyAppName "ScreenHop"
+#define MyAppExeName "ScreenHop.exe"
+#define MyPublisher "ScreenHop"
 
 #ifndef AppVersion
   #define AppVersion "1.0.0"
 #endif
 
 #ifndef DistDir
-  #define DistDir AddBackslash(SourcePath) + "..\dist\browser_move"
+  #define DistDir AddBackslash(SourcePath) + "..\dist\ScreenHop"
 #endif
 
 #ifndef OutputDir
@@ -18,15 +18,16 @@
 #endif
 
 [Setup]
+; Keep the existing AppId so ScreenHop upgrades prior Browser Move builds cleanly.
 AppId={{6B171D1C-4D62-4471-A3BF-5A2EF7F0F804}
 AppName={#MyAppName}
 AppVersion={#AppVersion}
 AppPublisher={#MyPublisher}
-DefaultDirName={localappdata}\BrowserMoveAutomation
+DefaultDirName={localappdata}\ScreenHop
 DefaultGroupName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 OutputDir={#OutputDir}
-OutputBaseFilename=BrowserMoveAutomation-{#AppVersion}-win7plus
+OutputBaseFilename=ScreenHop-{#AppVersion}-win7plus
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

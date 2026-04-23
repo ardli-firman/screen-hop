@@ -1,10 +1,11 @@
-"""Main window UI for browser move automation."""
+"""Main window UI for ScreenHop."""
 
 from __future__ import annotations
 
 import customtkinter as ctk
 from typing import Any
 
+from src.browser_move import APP_NAME
 from src.browser_move.config import load_config
 from src.browser_move.settings_window import SettingsWindow
 from src.browser_move.preset_form import PresetForm
@@ -18,7 +19,7 @@ from src.browser_move.monitors import resolve_display_for_preset
 
 
 class MainWindow:
-    """Main application window for browser move automation."""
+    """Main application window for ScreenHop."""
 
     def __init__(self, root: ctk.CTk, tray: Any = None):
         """Initialize main window.
@@ -40,7 +41,7 @@ class MainWindow:
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
-        self.root.title("Browser Move Automation")
+        self.root.title(APP_NAME)
         self.root.geometry("800x600")
         self.root.minsize(600, 400)
 

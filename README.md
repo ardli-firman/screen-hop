@@ -1,4 +1,4 @@
-# Browser Move Automation
+# ScreenHop
 
 Windows GUI app to launch Firefox/Chrome/Edge and move the window to a selected display.
 
@@ -31,18 +31,18 @@ Use a Python `3.8.x` environment when targeting Windows 7.
 
 ```bash
 pip install -r requirements.txt
-pyinstaller browser_move.spec
+pyinstaller screenhop.spec
 ```
 
 Output:
 
-- `dist/browser_move/browser_move.exe`
+- `dist/ScreenHop/ScreenHop.exe`
 
 ## Build Installer (Windows 7+)
 
 This repo includes:
 
-- Inno Setup script: `installer/browser_move_win7.iss`
+- Inno Setup script: `installer/screenhop_win7.iss`
 - Build helper: `build_installer.ps1`
 
 ### Prerequisites
@@ -64,7 +64,7 @@ Optional parameters:
 
 Installer output:
 
-- `dist/installer/BrowserMoveAutomation-<version>-win7plus.exe`
+- `dist/installer/ScreenHop-<version>-win7plus.exe`
 
 ## Windows 7 Notes
 
@@ -75,8 +75,8 @@ Installer output:
 ## Project Layout
 
 ```text
-src/browser_move/       main package
-browser_move.spec       pyinstaller build spec
+src/browser_move/       main package (legacy module path kept for compatibility)
+screenhop.spec          pyinstaller build spec
 installer/              inno setup script(s)
 build_installer.ps1     build exe + installer
 config.json             app config

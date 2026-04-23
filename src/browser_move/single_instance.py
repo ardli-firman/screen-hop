@@ -1,8 +1,13 @@
 import win32event
 import win32api
+
 import ctypes
 
+from src.browser_move import APP_NAME
+
 ERROR_ALREADY_EXISTS = 183
+# Keep the legacy mutex name so ScreenHop still blocks duplicate launches
+# from older Browser Move Automation installs during upgrades.
 MUTEX_NAME = "BrowserMoveAppMutex"
 
 
@@ -31,15 +36,13 @@ def check_single_instance() -> bool:
         return True
 
 
-def show_already_running_message():
+def show_already_running_message() -> None:
     """Show message box informing user app is already running."""
     try:
-        import ctypes
-
         ctypes.windll.user32.MessageBoxW(
             0,
-            "Browser Move Automation is already running.",
-            "Already Running",
+            f"{APP_NAME} is already running.",
+            f"{APP_NAME} Already Running",
             0x30,  # MB_ICONWARNING
         )
     except Exception:

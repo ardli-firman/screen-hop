@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "browser_move"
+name = "screen-hop"
 version = "1.0.0"
-description = "Browser display automation for external monitors"
+description = "ScreenHop browser display automation for external monitors"
 requires-python = ">=3.8,<3.9"
 dependencies = []
 
 [project.scripts]
-browser-move = "browser_move.__main__:main"
+screenhop = "browser_move.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

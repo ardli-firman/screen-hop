@@ -7,8 +7,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$installerScript = Join-Path $projectRoot "installer\browser_move_win7.iss"
-$distDir = Join-Path $projectRoot "dist\browser_move"
+$installerScript = Join-Path $projectRoot "installer\screenhop_win7.iss"
+$distDir = Join-Path $projectRoot "dist\ScreenHop"
+$exeName = "ScreenHop.exe"
 
 function Get-PythonVersionString {
     param([string]$PythonExecutable)
@@ -71,10 +72,10 @@ if (-not $SkipDependencyInstall) {
 }
 
 Write-Host "Building PyInstaller bundle..."
-& $PythonCmd -m PyInstaller --noconfirm --clean (Join-Path $projectRoot "browser_move.spec")
+& $PythonCmd -m PyInstaller --noconfirm --clean (Join-Path $projectRoot "screenhop.spec")
 
-if (-not (Test-Path (Join-Path $distDir "browser_move.exe"))) {
-    throw "Build failed: browser_move.exe not found at $distDir"
+if (-not (Test-Path (Join-Path $distDir $exeName))) {
+    throw "Build failed: $exeName not found at $distDir"
 }
 
 $appVersion = Get-AppVersion -PythonExecutable $PythonCmd -RootPath $projectRoot

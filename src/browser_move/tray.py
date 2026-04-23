@@ -1,9 +1,12 @@
 """System tray icon manager using pystray."""
 
-import pystray
-from PIL import Image
 from pathlib import Path
 from typing import Callable, Dict, Any, Optional
+
+import pystray
+from PIL import Image
+
+from src.browser_move import APP_NAME
 
 
 class TrayManager:
@@ -36,9 +39,9 @@ class TrayManager:
         menu = self._create_menu()
 
         self.icon = pystray.Icon(
-            "BrowserMove",
+            APP_NAME,
             image,
-            "Browser Move Automation",
+            APP_NAME,
             menu=menu,
         )
         if self.icon:

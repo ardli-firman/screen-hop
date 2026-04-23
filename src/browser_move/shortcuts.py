@@ -1,7 +1,7 @@
-"""Desktop and startup shortcuts for browser move automation.
+"""Desktop and startup shortcuts for ScreenHop.
 
 This module provides functions to create desktop shortcuts and manage
-startup folder shortcuts for the browser move automation application.
+startup folder shortcuts for the ScreenHop application.
 """
 
 from __future__ import annotations
@@ -11,6 +11,8 @@ from pathlib import Path
 
 from win32com.client import Dispatch
 import winshell
+
+from src.browser_move import APP_NAME
 
 
 def get_desktop_path() -> Path:
@@ -51,7 +53,7 @@ def _get_target_and_args(preset_name: str | None = None) -> tuple[str, str]:
             args = f'--preset "{preset_name}"'
         return str(exe_path), args
 
-    # Development mode - use pythonw with -m browser_move.main
+    # Development mode - use pythonw with the repo module entry point.
     # Find pythonw.exe
     python_dir = Path(sys.executable).parent
     pythonw_path = python_dir / "pythonw.exe"
@@ -60,7 +62,7 @@ def _get_target_and_args(preset_name: str | None = None) -> tuple[str, str]:
         # Fallback to python.exe if pythonw doesn't exist
         pythonw_path = Path(sys.executable)
 
-    args = "-m browser_move.main"
+    args = "-m src.browser_move.main"
     if preset_name:
         args += f' --preset "{preset_name}"'
 
@@ -135,7 +137,7 @@ def create_shortcut(shortcut_path: Path, preset_name: str | None = None) -> bool
 
 
 def create_desktop_shortcut(preset_name: str | None = None) -> bool:
-    """Create a desktop shortcut for browser move automation.
+    """Create a desktop shortcut for ScreenHop.
 
     Args:
         preset_name: Optional preset name to include in shortcut name and arguments.
@@ -148,9 +150,9 @@ def create_desktop_shortcut(preset_name: str | None = None) -> bool:
 
         # Create shortcut name
         if preset_name:
-            shortcut_name = f"BrowserMove - {preset_name}.lnk"
+            shortcut_name = f"{APP_NAME} - {preset_name}.lnk"
         else:
-            shortcut_name = "BrowserMove.lnk"
+            shortcut_name = f"{APP_NAME}.lnk"
 
         shortcut_path = desktop / shortcut_name
 
@@ -172,9 +174,9 @@ def is_in_startup(preset_name: str | None = None) -> bool:
     startup = get_startup_path()
 
     if preset_name:
-        shortcut_name = f"BrowserMove - {preset_name}.lnk"
+        shortcut_name = f"{APP_NAME} - {preset_name}.lnk"
     else:
-        shortcut_name = "BrowserMove.lnk"
+        shortcut_name = f"{APP_NAME}.lnk"
 
     shortcut_path = startup / shortcut_name
     return shortcut_path.exists()
@@ -193,9 +195,9 @@ def add_to_startup(preset_name: str | None = None) -> bool:
         startup = get_startup_path()
 
         if preset_name:
-            shortcut_name = f"BrowserMove - {preset_name}.lnk"
+            shortcut_name = f"{APP_NAME} - {preset_name}.lnk"
         else:
-            shortcut_name = "BrowserMove.lnk"
+            shortcut_name = f"{APP_NAME}.lnk"
 
         shortcut_path = startup / shortcut_name
 
@@ -218,9 +220,9 @@ def remove_from_startup(preset_name: str | None = None) -> bool:
         startup = get_startup_path()
 
         if preset_name:
-            shortcut_name = f"BrowserMove - {preset_name}.lnk"
+            shortcut_name = f"{APP_NAME} - {preset_name}.lnk"
         else:
-            shortcut_name = "BrowserMove.lnk"
+            shortcut_name = f"{APP_NAME}.lnk"
 
         shortcut_path = startup / shortcut_name
 
@@ -251,23 +253,23 @@ def toggle_startup(preset_name: str | None = None) -> bool:
 
 
 def get_all_startup_shortcuts() -> list[Path]:
-    """Get all BrowserMove shortcuts in the startup folder.
+    """Get all ScreenHop shortcuts in the startup folder.
 
     Returns:
-        List of paths to BrowserMove shortcuts in startup folder.
+        List of paths to ScreenHop shortcuts in startup folder.
     """
     startup = get_startup_path()
     shortcuts = []
 
     for item in startup.iterdir():
-        if item.name.startswith("BrowserMove") and item.suffix == ".lnk":
+        if item.name.startswith(APP_NAME) and item.suffix == ".lnk":
             shortcuts.append(item)
 
     return shortcuts
 
 
 def remove_all_startup_shortcuts() -> int:
-    """Remove all BrowserMove shortcuts from the startup folder.
+    """Remove all ScreenHop shortcuts from the startup folder.
 
     Returns:
         Number of shortcuts removed.

@@ -158,8 +158,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ```bash
 # Clone the repository
-git clone https://github.com/ardli-firman/screenhop.git
-cd screenhop
+git clone https://github.com/ardli-firman/screen-hop.git
+cd screen-hop
 
 # Install dependencies
 pip install -r requirements.txt

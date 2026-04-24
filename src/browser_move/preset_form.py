@@ -18,9 +18,11 @@ from src.browser_move.ui_theme import (
     ACCENT_HOVER,
     BORDER,
     DANGER,
+    INNER_RADIUS,
     INFO,
-    MODAL_GEOMETRY,
-    MODAL_MIN_SIZE,
+    PRESET_FORM_CONTENT_MAX_WIDTH,
+    PRESET_FORM_GEOMETRY,
+    PRESET_FORM_MIN_SIZE,
     SUCCESS,
     SURFACE,
     SURFACE_ALT,
@@ -71,42 +73,53 @@ class PresetForm:
     def setup_ui(self) -> None:
         self.window = ctk.CTkToplevel(self.parent)
         self.window.title("Edit Preset" if self.preset else "New Preset")
-        self.window.geometry(MODAL_GEOMETRY)
-        self.window.minsize(*MODAL_MIN_SIZE)
+        self.window.geometry(PRESET_FORM_GEOMETRY)
+        self.window.minsize(*PRESET_FORM_MIN_SIZE)
         self.window.resizable(True, True)
         self.window.configure(fg_color=SURFACE)
+        self.window.grid_columnconfigure(0, weight=1)
+        self.window.grid_rowconfigure(0, weight=1)
         self.window.grab_set()
         self.window.transient(self.parent)
         self._center_window()
 
-        shell = ctk.CTkFrame(self.window, fg_color="transparent")
-        shell.pack(fill="both", expand=True, padx=18, pady=18)
+        shell = ctk.CTkFrame(
+            self.window,
+            fg_color="transparent",
+            width=PRESET_FORM_CONTENT_MAX_WIDTH,
+        )
+        shell.grid(row=0, column=0, sticky="ns", padx=12, pady=12)
+        shell.grid_propagate(False)
+        shell.grid_columnconfigure(0, weight=1)
+        shell.grid_rowconfigure(0, weight=1)
 
         main_card = ctk.CTkFrame(shell)
         style_panel(main_card)
-        main_card.pack(fill="both", expand=True)
+        main_card.grid(row=0, column=0, sticky="nsew")
+        main_card.grid_columnconfigure(0, weight=1)
+        main_card.grid_rowconfigure(1, weight=1)
 
         header = ctk.CTkFrame(main_card, fg_color="transparent")
-        header.pack(fill="x", padx=22, pady=(20, 12))
+        header.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 10))
 
         ctk.CTkLabel(
             header,
             text="Edit App Preset" if self.preset else "Create App Preset",
-            font=font(20, "bold"),
+            font=font(17, "bold"),
             anchor="w",
         ).pack(fill="x")
         ctk.CTkLabel(
             header,
-            text="Pick a Windows executable, choose the target display, and add optional launch tuning only when needed.",
-            font=font(12),
+            text="Choose executables, displays, and optional launch tuning.",
+            font=font(11),
             text_color=TEXT_MUTED,
             anchor="w",
             justify="left",
-            wraplength=620,
-        ).pack(fill="x", pady=(4, 0))
+            wraplength=650,
+        ).pack(fill="x", pady=(2, 0))
 
         form_body = ctk.CTkScrollableFrame(main_card, fg_color="transparent")
-        form_body.pack(fill="both", expand=True, padx=18, pady=(0, 12))
+        form_body.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 10))
         form_body.grid_columnconfigure(0, weight=1)
 
         self._create_template_picker(form_body, row=0)
@@ -140,13 +153,13 @@ class PresetForm:
         )
 
         display_row = ctk.CTkFrame(form_body, fg_color="transparent")
-        display_row.grid(row=5, column=0, sticky="ew", pady=(0, 14))
+        display_row.grid(row=5, column=0, sticky="ew", pady=(0, 10))
         display_row.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             display_row,
             text="Target Display",
-            font=font(12, "bold"),
+            font=font(11, "bold"),
             anchor="w",
         ).grid(row=0, column=0, sticky="w", pady=(0, 6))
 
@@ -158,10 +171,10 @@ class PresetForm:
             monitor_input_row,
             values=["Loading displays..."],
             state="readonly",
-            height=40,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         self.monitor_combo.grid(row=0, column=0, sticky="ew", padx=(0, 10))
 
@@ -169,50 +182,50 @@ class PresetForm:
             monitor_input_row,
             text="Refresh",
             width=96,
-            height=40,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             fg_color=SURFACE_ALT,
             hover_color=SURFACE,
             border_width=1,
             border_color=BORDER,
             command=self.refresh_monitor_choices,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         self.refresh_monitors_btn.grid(row=0, column=1)
 
         ctk.CTkLabel(
             display_row,
-            text="Pick the display where the new app window should land after launch. If only one monitor is available, ScreenHop uses the main display.",
-            font=font(11),
+            text="If only one monitor is available, ScreenHop uses the main display.",
+            font=font(10),
             text_color=TEXT_MUTED,
             anchor="w",
             justify="left",
-            wraplength=620,
+            wraplength=650,
         ).grid(row=2, column=0, sticky="w", pady=(6, 0))
 
         self.refresh_monitor_choices()
 
         advanced_toggle_row = ctk.CTkFrame(form_body, fg_color="transparent")
-        advanced_toggle_row.grid(row=6, column=0, sticky="ew", pady=(4, 12))
+        advanced_toggle_row.grid(row=6, column=0, sticky="ew", pady=(2, 8))
         advanced_toggle_row.grid_columnconfigure(0, weight=1)
 
         self.advanced_toggle_btn = ctk.CTkButton(
             advanced_toggle_row,
             text="Show Advanced Options",
             command=self.toggle_advanced,
-            height=38,
-            corner_radius=14,
+            height=34,
+            corner_radius=INNER_RADIUS,
             fg_color=SURFACE_ALT,
             hover_color=SURFACE,
             border_width=1,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         self.advanced_toggle_btn.grid(row=0, column=0, sticky="w")
 
         self.advanced_frame = ctk.CTkFrame(form_body)
         style_card(self.advanced_frame, fg_color=("#eff7ff", "#132033"), border_color=INFO)
-        self.advanced_frame.grid(row=7, column=0, sticky="ew", pady=(0, 14))
+        self.advanced_frame.grid(row=7, column=0, sticky="ew", pady=(0, 10))
         self.advanced_frame.grid_columnconfigure(0, weight=1)
 
         self.launch_args_entry = self._create_text_field(
@@ -221,8 +234,8 @@ class PresetForm:
             label="Launch Arguments",
             placeholder="--profile production --startvirtualcam",
             helper="Optional. Keep Windows-style quoting exactly as the app expects.",
-            padx=14,
-            pady_top=14,
+            padx=12,
+            pady_top=12,
         )
 
         self.working_dir_entry = self._create_browse_field(
@@ -233,7 +246,7 @@ class PresetForm:
             placeholder="Leave empty to use the executable folder",
             helper="Optional. Use this when the app depends on a specific startup folder.",
             command=self.browse_working_directory,
-            padx=14,
+            padx=12,
         )
 
         self.window_hint_entry = self._create_text_field(
@@ -242,23 +255,24 @@ class PresetForm:
             label="Window Title Hint",
             placeholder="OBS / VLC / Dashboard",
             helper="Optional. Helps ScreenHop choose the right new window when the app opens more than one.",
-            padx=14,
-            pady_bottom=14,
+            padx=12,
+            pady_bottom=12,
         )
 
         self.feedback_label = ctk.CTkLabel(
             main_card,
             text="",
-            font=font(11, "bold"),
+            height=20,
+            font=font(10, "bold"),
             text_color=self._feedback_color,
             justify="left",
             wraplength=650,
             anchor="w",
         )
-        self.feedback_label.pack(fill="x", padx=22, pady=(0, 12))
+        self.feedback_label.grid(row=2, column=0, sticky="ew", padx=16, pady=(0, 8))
 
         footer = ctk.CTkFrame(main_card, fg_color="transparent")
-        footer.pack(fill="x", padx=22, pady=(0, 20))
+        footer.grid(row=3, column=0, sticky="ew", padx=16, pady=(0, 14))
         footer.grid_columnconfigure(0, weight=1)
         footer.grid_columnconfigure(1, weight=1)
         footer.grid_columnconfigure(2, weight=1)
@@ -267,11 +281,11 @@ class PresetForm:
             footer,
             text="Update Preset" if self.preset else "Save Preset",
             command=self.save_preset,
-            height=42,
-            corner_radius=14,
+            height=38,
+            corner_radius=INNER_RADIUS,
             fg_color=ACCENT,
             hover_color=ACCENT_HOVER,
-            font=font(13, "bold"),
+            font=font(12, "bold"),
         )
         self.save_btn.grid(row=0, column=0, sticky="ew", padx=(0, 8))
 
@@ -280,11 +294,11 @@ class PresetForm:
                 footer,
                 text="Delete",
                 command=self.delete_preset,
-                height=42,
-                corner_radius=14,
+                height=38,
+                corner_radius=INNER_RADIUS,
                 fg_color=DANGER,
                 hover_color=("#b53d4d", "#dc2626"),
-                font=font(13, "bold"),
+                font=font(12, "bold"),
             )
             self.delete_btn.grid(row=0, column=1, sticky="ew", padx=8)
         else:
@@ -295,13 +309,13 @@ class PresetForm:
             footer,
             text="Cancel",
             command=self.window.destroy,
-            height=42,
-            corner_radius=14,
+            height=38,
+            corner_radius=INNER_RADIUS,
             fg_color=SURFACE_ALT,
             hover_color=SURFACE,
             border_width=1,
             border_color=BORDER,
-            font=font(13, "bold"),
+            font=font(12, "bold"),
         )
         self.cancel_btn.grid(row=0, column=2, sticky="ew", padx=(8, 0))
 
@@ -331,18 +345,18 @@ class PresetForm:
     ) -> None:
         template_row = ctk.CTkFrame(parent)
         style_card(template_row, fg_color=("#f4f9ff", "#122033"), border_color=INFO)
-        template_row.grid(row=row, column=0, sticky="ew", pady=(0, 14))
+        template_row.grid(row=row, column=0, sticky="ew", pady=(0, 10))
         template_row.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             template_row,
             text="Preset Template",
-            font=font(12, "bold"),
+            font=font(11, "bold"),
             anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=14, pady=(14, 6))
+        ).grid(row=0, column=0, sticky="w", padx=12, pady=(12, 6))
 
         selector_row = ctk.CTkFrame(template_row, fg_color="transparent")
-        selector_row.grid(row=1, column=0, sticky="ew", padx=14)
+        selector_row.grid(row=1, column=0, sticky="ew", padx=12)
         selector_row.grid_columnconfigure(0, weight=1)
 
         labels: list[str] = []
@@ -354,10 +368,10 @@ class PresetForm:
             selector_row,
             values=labels,
             state="readonly",
-            height=40,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         self.template_combo.grid(row=0, column=0, sticky="ew", padx=(0, 10))
         if labels:
@@ -368,28 +382,27 @@ class PresetForm:
             text="Apply",
             command=self.apply_selected_template,
             width=96,
-            height=40,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             fg_color=SURFACE_ALT,
             hover_color=SURFACE,
             border_width=1,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         self.apply_template_btn.grid(row=0, column=1)
 
         ctk.CTkLabel(
             template_row,
             text=(
-                "Use built-in presets for common launch patterns. "
-                "Browser Kiosk (Firefox) follows the launch parameters from docs/run.bat."
+                "Use a built-in preset, or keep Blank / Manual for a custom app."
             ),
-            font=font(11),
+            font=font(10),
             text_color=TEXT_MUTED,
             anchor="w",
             justify="left",
-            wraplength=620,
-        ).grid(row=2, column=0, sticky="w", padx=14, pady=(6, 14))
+            wraplength=650,
+        ).grid(row=2, column=0, sticky="w", padx=12, pady=(6, 12))
 
     def _create_program_manager(
         self,
@@ -398,30 +411,30 @@ class PresetForm:
     ) -> None:
         program_row = ctk.CTkFrame(parent)
         style_card(program_row, fg_color=("#f7fbf8", "#12251e"), border_color=SUCCESS)
-        program_row.grid(row=row, column=0, sticky="ew", pady=(0, 14))
+        program_row.grid(row=row, column=0, sticky="ew", pady=(0, 10))
         program_row.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             program_row,
             text="Programs",
-            font=font(12, "bold"),
+            font=font(11, "bold"),
             anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=14, pady=(14, 6))
+        ).grid(row=0, column=0, sticky="w", padx=12, pady=(12, 6))
 
         self.program_combo = ctk.CTkComboBox(
             program_row,
             values=["1. Program"],
             state="readonly",
             command=self._on_program_selected,
-            height=40,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
-        self.program_combo.grid(row=1, column=0, sticky="ew", padx=14)
+        self.program_combo.grid(row=1, column=0, sticky="ew", padx=12)
 
         button_row = ctk.CTkFrame(program_row, fg_color="transparent")
-        button_row.grid(row=2, column=0, sticky="ew", padx=14, pady=(10, 14))
+        button_row.grid(row=2, column=0, sticky="ew", padx=12, pady=(8, 12))
         for column in range(4):
             button_row.grid_columnconfigure(column, weight=1)
 
@@ -429,13 +442,13 @@ class PresetForm:
             button_row,
             text="Add",
             command=self.add_program,
-            height=36,
-            corner_radius=14,
+            height=34,
+            corner_radius=INNER_RADIUS,
             fg_color=SURFACE_ALT,
             hover_color=SURFACE,
             border_width=1,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         self.add_program_btn.grid(row=0, column=0, sticky="ew", padx=(0, 6))
 
@@ -443,13 +456,13 @@ class PresetForm:
             button_row,
             text="Up",
             command=self.move_program_up,
-            height=36,
-            corner_radius=14,
+            height=34,
+            corner_radius=INNER_RADIUS,
             fg_color=SURFACE_ALT,
             hover_color=SURFACE,
             border_width=1,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         self.move_up_btn.grid(row=0, column=1, sticky="ew", padx=6)
 
@@ -457,13 +470,13 @@ class PresetForm:
             button_row,
             text="Down",
             command=self.move_program_down,
-            height=36,
-            corner_radius=14,
+            height=34,
+            corner_radius=INNER_RADIUS,
             fg_color=SURFACE_ALT,
             hover_color=SURFACE,
             border_width=1,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         self.move_down_btn.grid(row=0, column=2, sticky="ew", padx=6)
 
@@ -471,11 +484,11 @@ class PresetForm:
             button_row,
             text="Delete",
             command=self.delete_program,
-            height=36,
-            corner_radius=14,
+            height=34,
+            corner_radius=INNER_RADIUS,
             fg_color=DANGER,
             hover_color=("#b53d4d", "#dc2626"),
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         self.delete_program_btn.grid(row=0, column=3, sticky="ew", padx=(6, 0))
 
@@ -488,32 +501,32 @@ class PresetForm:
         helper: str,
         padx: int = 0,
         pady_top: int = 0,
-        pady_bottom: int = 14,
+        pady_bottom: int = 10,
     ) -> ctk.CTkEntry:
         field = ctk.CTkFrame(parent, fg_color="transparent")
         field.grid(row=row, column=0, sticky="ew", padx=padx, pady=(pady_top, pady_bottom))
         field.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(field, text=label, font=font(12, "bold"), anchor="w").grid(
+        ctk.CTkLabel(field, text=label, font=font(11, "bold"), anchor="w").grid(
             row=0, column=0, sticky="w", pady=(0, 6)
         )
         entry = ctk.CTkEntry(
             field,
-            height=40,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             placeholder_text=placeholder,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         entry.grid(row=1, column=0, sticky="ew")
         ctk.CTkLabel(
             field,
             text=helper,
-            font=font(11),
+            font=font(10),
             text_color=TEXT_MUTED,
             anchor="w",
             justify="left",
-            wraplength=620,
+            wraplength=650,
         ).grid(row=2, column=0, sticky="w", pady=(6, 0))
         return entry
 
@@ -529,10 +542,10 @@ class PresetForm:
         padx: int = 0,
     ) -> ctk.CTkEntry:
         field = ctk.CTkFrame(parent, fg_color="transparent")
-        field.grid(row=row, column=0, sticky="ew", padx=padx, pady=(0, 14))
+        field.grid(row=row, column=0, sticky="ew", padx=padx, pady=(0, 10))
         field.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(field, text=label, font=font(12, "bold"), anchor="w").grid(
+        ctk.CTkLabel(field, text=label, font=font(11, "bold"), anchor="w").grid(
             row=0, column=0, sticky="w", pady=(0, 6)
         )
 
@@ -542,11 +555,11 @@ class PresetForm:
 
         entry = ctk.CTkEntry(
             input_row,
-            height=40,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             placeholder_text=placeholder,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         entry.grid(row=0, column=0, sticky="ew", padx=(0, 10))
 
@@ -555,23 +568,23 @@ class PresetForm:
             text=button_text,
             command=command,
             width=96,
-            height=40,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             fg_color=SURFACE_ALT,
             hover_color=SURFACE,
             border_width=1,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         ).grid(row=0, column=1)
 
         ctk.CTkLabel(
             field,
             text=helper,
-            font=font(11),
+            font=font(10),
             text_color=TEXT_MUTED,
             anchor="w",
             justify="left",
-            wraplength=620,
+            wraplength=650,
         ).grid(row=2, column=0, sticky="w", pady=(6, 0))
         return entry
 
@@ -748,8 +761,8 @@ class PresetForm:
         parent_width = self.parent.winfo_width()
         parent_height = self.parent.winfo_height()
 
-        window_width = 760
-        window_height = 680
+        window_width = 780
+        window_height = 760
 
         if parent_width <= 1 or parent_height <= 1:
             screen_width = self.window.winfo_screenwidth()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from tkinter import TclError
 from typing import Any
 
 import customtkinter as ctk
@@ -16,10 +17,13 @@ from src.browser_move.status_bar import StatusBar
 from src.browser_move.ui_theme import (
     ACCENT,
     ACCENT_HOVER,
+    APP_CONTENT_MAX_WIDTH,
     APP_GEOMETRY,
     APP_MIN_SIZE,
     BORDER,
+    DISABLED,
     INFO,
+    INNER_RADIUS,
     SURFACE,
     SURFACE_ALT,
     SURFACE_MUTED,
@@ -57,45 +61,104 @@ class MainWindow:
         self.root.grid_columnconfigure(0, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
 
-        shell = ctk.CTkFrame(self.root, fg_color="transparent")
-        shell.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
-        shell.grid_columnconfigure(0, weight=0)
-        shell.grid_columnconfigure(1, weight=1)
-        shell.grid_rowconfigure(0, weight=1)
+        outer = ctk.CTkFrame(self.root, fg_color="transparent")
+        outer.grid(row=0, column=0, sticky="nsew", padx=16, pady=14)
+        outer.grid_columnconfigure(0, weight=1)
+        outer.grid_rowconfigure(0, weight=1)
 
-        self.sidebar = ctk.CTkFrame(shell, width=320)
+        self.shell = ctk.CTkFrame(outer, fg_color="transparent", width=APP_CONTENT_MAX_WIDTH)
+        self.shell.grid(row=0, column=0, sticky="ns")
+        self.shell.grid_propagate(False)
+        self.shell.grid_columnconfigure(0, weight=1)
+        self.shell.grid_rowconfigure(1, weight=1)
+        self.root.bind("<Configure>", self._sync_shell_width, add="+")
+        self.root.after(0, self._sync_shell_width)
+
+        topbar = ctk.CTkFrame(self.shell, height=46)
+        style_panel(topbar)
+        topbar.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        topbar.grid_propagate(False)
+        topbar.grid_columnconfigure(0, weight=1)
+        topbar.grid_rowconfigure(0, weight=1)
+
+        brand_row = ctk.CTkFrame(topbar, fg_color="transparent")
+        brand_row.grid(row=0, column=0, sticky="w", padx=14, pady=8)
+
+        ctk.CTkLabel(
+            brand_row,
+            text=APP_NAME,
+            font=font(16, "bold"),
+            anchor="w",
+        ).pack(side="left")
+        ctk.CTkLabel(
+            brand_row,
+            text=f"v{__version__}",
+            font=font(10, "bold"),
+            text_color=TEXT_MUTED,
+            fg_color=SURFACE_MUTED,
+            corner_radius=999,
+            padx=8,
+            pady=2,
+        ).pack(side="left", padx=(8, 0))
+
+        self.settings_btn = ctk.CTkButton(
+            topbar,
+            text="Settings",
+            command=self.open_settings,
+            width=96,
+            height=32,
+            corner_radius=INNER_RADIUS,
+            fg_color=SURFACE_ALT,
+            hover_color=SURFACE_MUTED,
+            border_width=1,
+            border_color=BORDER,
+            font=font(11, "bold"),
+        )
+        self.settings_btn.grid(row=0, column=1, sticky="e", padx=12, pady=7)
+
+        body = ctk.CTkFrame(self.shell, fg_color="transparent")
+        body.grid(row=1, column=0, sticky="nsew")
+        body.grid_columnconfigure(0, weight=0)
+        body.grid_columnconfigure(1, weight=1)
+        body.grid_rowconfigure(0, weight=1)
+
+        self.sidebar = ctk.CTkFrame(body, width=320)
         style_panel(self.sidebar)
-        self.sidebar.grid(row=0, column=0, sticky="nsew", padx=(0, 16))
+        self.sidebar.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
         self.sidebar.grid_propagate(False)
         self.sidebar.grid_columnconfigure(0, weight=1)
-        self.sidebar.grid_rowconfigure(4, weight=1)
+        self.sidebar.grid_rowconfigure(3, weight=1)
 
         sidebar_header = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        sidebar_header.grid(row=0, column=0, sticky="ew", padx=18, pady=(18, 10))
+        sidebar_header.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 8))
         sidebar_header.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             sidebar_header,
-            text=APP_NAME,
-            font=font(24, "bold"),
+            text="Presets",
+            font=font(13, "bold"),
             anchor="w",
         ).grid(row=0, column=0, sticky="w")
-        ctk.CTkLabel(
+        self.preset_count_label = ctk.CTkLabel(
             sidebar_header,
-            text=f"v{__version__}",
-            font=font(10, "bold"),
+            text="0 presets",
+            font=font(11, "bold"),
             text_color=TEXT_MUTED,
             anchor="e",
-        ).grid(row=0, column=1, sticky="e")
-        ctk.CTkLabel(
-            sidebar_header,
-            text="Launch any Windows app and snap it to the right display.",
-            font=font(12),
-            text_color=TEXT_MUTED,
-            anchor="w",
-            justify="left",
-            wraplength=252,
-        ).grid(row=1, column=0, columnspan=2, sticky="ew", pady=(4, 0))
+        )
+        self.preset_count_label.grid(row=0, column=1, sticky="e")
+
+        self.new_btn = ctk.CTkButton(
+            self.sidebar,
+            text="New Preset",
+            command=self.new_preset,
+            height=34,
+            corner_radius=INNER_RADIUS,
+            fg_color=ACCENT,
+            hover_color=ACCENT_HOVER,
+            font=font(12, "bold"),
+        )
+        self.new_btn.grid(row=1, column=0, sticky="ew", padx=12, pady=(0, 8))
 
         self.notice_frame = ctk.CTkFrame(self.sidebar)
         style_card(self.notice_frame, fg_color=("#fff4e5", "#3a2a0e"), border_color=WARN)
@@ -104,191 +167,131 @@ class MainWindow:
             text="",
             justify="left",
             anchor="w",
-            wraplength=250,
-            font=font(11, "bold"),
+            wraplength=232,
+            font=font(10, "bold"),
         )
-        self.notice_label.pack(fill="x", padx=12, pady=10)
-
-        sidebar_actions = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        sidebar_actions.grid(row=1, column=0, sticky="ew", padx=18, pady=(0, 12))
-        sidebar_actions.grid_columnconfigure(0, weight=1)
-
-        self.new_btn = ctk.CTkButton(
-            sidebar_actions,
-            text="New Preset",
-            command=self.new_preset,
-            height=42,
-            corner_radius=14,
-            fg_color=ACCENT,
-            hover_color=ACCENT_HOVER,
-            font=font(13, "bold"),
-        )
-        self.new_btn.grid(row=0, column=0, sticky="ew")
+        self.notice_label.pack(fill="x", padx=10, pady=8)
 
         self.search_entry = ctk.CTkEntry(
             self.sidebar,
             textvariable=self._search_var,
-            height=40,
-            corner_radius=14,
+            height=34,
+            corner_radius=INNER_RADIUS,
             placeholder_text="Search presets...",
             border_color=BORDER,
-        )
-        self.search_entry.grid(row=2, column=0, sticky="ew", padx=18, pady=(0, 8))
-        self._search_var.trace_add("write", lambda *_args: self._render_preset_list())
-
-        self.preset_count_label = ctk.CTkLabel(
-            self.sidebar,
-            text="0 presets",
             font=font(11, "bold"),
-            text_color=TEXT_MUTED,
-            anchor="w",
         )
-        self.preset_count_label.grid(row=3, column=0, sticky="ew", padx=18, pady=(0, 8))
+        self.search_entry.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 8))
+        self._search_var.trace_add("write", lambda *_args: self._render_preset_list())
 
         self.preset_list_frame = ctk.CTkScrollableFrame(
             self.sidebar,
             fg_color="transparent",
             corner_radius=0,
         )
-        self.preset_list_frame.grid(row=4, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        self.preset_list_frame.grid(row=3, column=0, sticky="nsew", padx=8, pady=(0, 8))
         self.preset_list_frame.grid_columnconfigure(0, weight=1)
 
-        content = ctk.CTkFrame(shell, fg_color="transparent")
-        content.grid(row=0, column=1, sticky="nsew")
-        content.grid_columnconfigure(0, weight=1)
-        content.grid_rowconfigure(2, weight=1)
+        self.details_card = ctk.CTkFrame(body)
+        style_panel(self.details_card)
+        self.details_card.grid(row=0, column=1, sticky="nsew")
+        self.details_card.grid_columnconfigure(0, weight=1)
+        self.details_card.grid_rowconfigure(1, weight=1)
 
-        header_card = ctk.CTkFrame(content)
-        style_panel(header_card)
-        header_card.grid(row=0, column=0, sticky="ew")
-        header_card.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(
-            header_card,
-            text="Preset Control Panel",
-            font=font(22, "bold"),
-            anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=20, pady=(18, 4))
-        ctk.CTkLabel(
-            header_card,
-            text="Keep launch, move, and shortcut workflows in one compact view.",
-            font=font(12),
-            text_color=TEXT_MUTED,
-            anchor="w",
-        ).grid(row=1, column=0, sticky="w", padx=20, pady=(0, 18))
-
-        self.hero_card = ctk.CTkFrame(content)
-        style_panel(self.hero_card)
-        self.hero_card.grid(row=1, column=0, sticky="ew", pady=(16, 16))
-        self.hero_card.grid_columnconfigure(0, weight=1)
-        self.hero_card.grid_columnconfigure(1, weight=0)
-
-        hero_text = ctk.CTkFrame(self.hero_card, fg_color="transparent")
-        hero_text.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
-        hero_text.grid_columnconfigure(0, weight=1)
+        details_header = ctk.CTkFrame(self.details_card, fg_color="transparent")
+        details_header.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 10))
+        details_header.grid_columnconfigure(0, weight=1)
 
         self.detail_title = ctk.CTkLabel(
-            hero_text,
+            details_header,
             text="No preset selected",
-            font=font(20, "bold"),
+            font=font(18, "bold"),
             anchor="w",
+            justify="left",
+            wraplength=620,
         )
-        self.detail_title.grid(row=0, column=0, sticky="w")
+        self.detail_title.grid(row=0, column=0, sticky="ew")
 
         self.detail_subtitle = ctk.CTkLabel(
-            hero_text,
+            details_header,
             text="Choose a preset on the left or create a new one.",
-            font=font(12),
+            font=font(11),
             text_color=TEXT_MUTED,
             anchor="w",
             justify="left",
-            wraplength=460,
+            wraplength=620,
         )
-        self.detail_subtitle.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        self.detail_subtitle.grid(row=1, column=0, sticky="ew", pady=(2, 8))
 
-        action_stack = ctk.CTkFrame(self.hero_card, fg_color="transparent")
-        action_stack.grid(row=0, column=1, sticky="ns", padx=(0, 20), pady=20)
+        action_stack = ctk.CTkFrame(details_header, fg_color="transparent")
+        action_stack.grid(row=2, column=0, sticky="ew")
+        action_stack.grid_columnconfigure(1, weight=1)
 
-        self.run_btn = ctk.CTkButton(
-            action_stack,
-            text="Launch & Move",
-            command=self.run_preset,
-            width=180,
-            height=46,
-            corner_radius=14,
-            fg_color=ACCENT,
-            hover_color=ACCENT_HOVER,
-            font=font(14, "bold"),
-        )
-        self.run_btn.pack(fill="x")
-
-        self.edit_btn = ctk.CTkButton(
-            action_stack,
-            text="Edit Preset",
-            command=self.edit_preset,
-            width=180,
-            height=40,
-            corner_radius=14,
-            fg_color=SURFACE_ALT,
-            hover_color=SURFACE_MUTED,
-            border_width=1,
-            border_color=BORDER,
-            font=font(13, "bold"),
-        )
-        self.edit_btn.pack(fill="x", pady=(10, 8))
-
-        self.settings_btn = ctk.CTkButton(
-            action_stack,
-            text="Settings",
-            command=self.open_settings,
-            width=180,
-            height=40,
-            corner_radius=14,
-            fg_color=SURFACE_ALT,
-            hover_color=SURFACE_MUTED,
-            border_width=1,
-            border_color=BORDER,
-            font=font(13, "bold"),
-        )
-        self.settings_btn.pack(fill="x")
-
-        self.details_card = ctk.CTkFrame(content)
-        style_panel(self.details_card)
-        self.details_card.grid(row=2, column=0, sticky="nsew")
-        self.details_card.grid_columnconfigure(0, weight=1)
-
-        details_header = ctk.CTkFrame(self.details_card, fg_color="transparent")
-        details_header.grid(row=0, column=0, sticky="ew", padx=20, pady=(18, 10))
-        details_header.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(
-            details_header,
-            text="Preset Details",
-            font=font(16, "bold"),
-            anchor="w",
-        ).grid(row=0, column=0, sticky="w")
         self.detail_badge = ctk.CTkLabel(
-            details_header,
-            text="Universal app preset",
-            font=font(11, "bold"),
-            fg_color=("#e4f0ff", "#1a2f52"),
+            action_stack,
+            text="No preset",
+            font=font(10, "bold"),
+            fg_color=("#e7efff", "#17294a"),
             text_color=INFO,
             corner_radius=999,
-            padx=12,
-            pady=5,
+            padx=10,
+            pady=3,
         )
-        self.detail_badge.grid(row=0, column=1, sticky="e")
+        self.detail_badge.grid(row=0, column=0, sticky="w")
 
-        self.details_grid = ctk.CTkFrame(self.details_card, fg_color="transparent")
-        self.details_grid.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
-        self.details_grid.grid_columnconfigure(0, weight=1)
+        action_buttons = ctk.CTkFrame(action_stack, fg_color="transparent")
+        action_buttons.grid(row=0, column=2, sticky="e")
 
-        self.program_details_frame = ctk.CTkFrame(self.details_grid, fg_color="transparent")
-        self.program_details_frame.grid(row=0, column=0, sticky="nsew")
+        self.run_btn = ctk.CTkButton(
+            action_buttons,
+            text="Launch & Move",
+            command=self.run_preset,
+            width=128,
+            height=34,
+            corner_radius=INNER_RADIUS,
+            fg_color=ACCENT,
+            hover_color=ACCENT_HOVER,
+            font=font(12, "bold"),
+        )
+        self.run_btn.pack(side="left")
+
+        self.edit_btn = ctk.CTkButton(
+            action_buttons,
+            text="Edit",
+            command=self.edit_preset,
+            width=76,
+            height=34,
+            corner_radius=INNER_RADIUS,
+            fg_color=SURFACE_ALT,
+            hover_color=SURFACE_MUTED,
+            border_width=1,
+            border_color=BORDER,
+            font=font(12, "bold"),
+        )
+        self.edit_btn.pack(side="left", padx=(8, 0))
+
+        self.program_details_frame = ctk.CTkScrollableFrame(
+            self.details_card,
+            fg_color="transparent",
+            corner_radius=0,
+        )
+        self.program_details_frame.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
         self.program_details_frame.grid_columnconfigure(0, weight=1)
 
-        self.status_bar = StatusBar(self.root)
-        self.status_bar.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
+        self.status_bar = StatusBar(self.shell)
+        self.status_bar.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+
+    def _sync_shell_width(self, _event: object | None = None) -> None:
+        if not hasattr(self, "shell"):
+            return
+
+        try:
+            if not self.shell.winfo_exists():
+                return
+            available_width = max(760, self.root.winfo_width() - 32)
+            self.shell.configure(width=min(APP_CONTENT_MAX_WIDTH, available_width))
+        except TclError:
+            return
 
     def setup_protocols(self) -> None:
         self.root.protocol("WM_DELETE_WINDOW", self._handle_close)
@@ -344,6 +347,31 @@ class MainWindow:
             return Path(executable_path).stem or f"Program {index}"
         return f"Program {index}"
 
+    def _short_text(self, value: str, limit: int) -> str:
+        cleaned = " ".join(value.split())
+        if len(cleaned) <= limit:
+            return cleaned
+        return f"{cleaned[: max(0, limit - 3)].rstrip()}..."
+
+    def _short_display_name(self, display_name: str) -> str:
+        value = str(display_name).strip()
+        if " - " in value:
+            value = value.split(" - ", 1)[0]
+        return self._short_text(value or "No display selected", 34)
+
+    def _display_summary(self, programs: list[dict[str, str]]) -> str:
+        displays: list[str] = []
+        for program in programs:
+            display_name = self._short_display_name(str(program.get("display_name", "")))
+            if display_name and display_name not in displays:
+                displays.append(display_name)
+
+        if not displays:
+            return "No display selected"
+        if len(displays) == 1:
+            return displays[0]
+        return f"{displays[0]} + {len(displays) - 1} more"
+
     def _preset_programs(self, preset: dict) -> list[dict[str, str]]:
         return get_preset_programs(preset)
 
@@ -353,22 +381,15 @@ class MainWindow:
             return "No programs configured"
 
         count_text = f"{len(programs)} program{'s' if len(programs) != 1 else ''}"
-        displays: list[str] = []
-        for program in programs:
-            display_name = str(program.get("display_name", "")).strip()
-            if display_name and display_name not in displays:
-                displays.append(display_name)
-
-        if not displays:
+        display_summary = self._display_summary(programs)
+        if display_summary == "No display selected":
             return count_text
-        if len(displays) == 1:
-            return f"{count_text} - {displays[0]}"
-        return f"{count_text} - {displays[0]} + {len(displays) - 1} more"
+        return f"{count_text} on {display_summary}"
 
     def _sync_notice_banner(self) -> None:
         if self._runtime_notices:
             self.notice_label.configure(text="\n".join(self._runtime_notices))
-            self.notice_frame.grid(row=5, column=0, sticky="ew", padx=18, pady=(0, 18))
+            self.notice_frame.grid(row=4, column=0, sticky="ew", padx=12, pady=(0, 12))
         else:
             self.notice_frame.grid_forget()
 
@@ -391,34 +412,81 @@ class MainWindow:
             ctk.CTkLabel(
                 empty_card,
                 text=empty_text,
-                font=font(12),
+                font=font(11),
                 text_color=TEXT_MUTED,
                 justify="left",
-                wraplength=240,
-            ).pack(fill="x", padx=14, pady=14)
+                wraplength=220,
+            ).pack(fill="x", padx=10, pady=10)
             return
 
         for row_index, preset in enumerate(filtered_presets):
             name = str(preset.get("name", "Unnamed Preset"))
             subtitle = self._preset_list_subtitle(preset)
             selected = name == self._selected_preset_name
-            fg_color = ("#ddf6ef", "#143129") if selected else SURFACE_ALT
+            fg_color = ("#e7efff", "#17294a") if selected else SURFACE_ALT
+            hover_color = ("#dbe8ff", "#1d3763")
             border_color = ACCENT if selected else BORDER
 
-            row_button = ctk.CTkButton(
-                self.preset_list_frame,
-                text=f"{name}\n{subtitle}",
-                command=lambda preset_name=name: self._select_preset(preset_name),
-                height=68,
-                corner_radius=16,
-                anchor="w",
-                fg_color=fg_color,
-                hover_color=("#cdeee4", "#1d4438"),
-                border_width=1,
-                border_color=border_color,
-                font=font(12, "bold"),
+            row_card = ctk.CTkFrame(self.preset_list_frame)
+            style_card(row_card, fg_color=fg_color, border_color=border_color)
+            row_card.grid(row=row_index, column=0, sticky="ew", padx=4, pady=3)
+            row_card.grid_columnconfigure(1, weight=1)
+
+            indicator = ctk.CTkFrame(
+                row_card,
+                width=3,
+                height=44,
+                fg_color=ACCENT if selected else "transparent",
+                corner_radius=2,
             )
-            row_button.grid(row=row_index, column=0, sticky="ew", padx=4, pady=4)
+            indicator.grid(row=0, column=0, rowspan=2, sticky="nsw", padx=(9, 9), pady=10)
+
+            title_label = ctk.CTkLabel(
+                row_card,
+                text=name,
+                font=font(11, "bold"),
+                anchor="w",
+                justify="left",
+                wraplength=245,
+            )
+            title_label.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=(9, 0))
+
+            subtitle_label = ctk.CTkLabel(
+                row_card,
+                text=subtitle,
+                font=font(10),
+                text_color=TEXT_MUTED,
+                anchor="w",
+                justify="left",
+                wraplength=245,
+            )
+            subtitle_label.grid(row=1, column=1, sticky="ew", padx=(0, 10), pady=(1, 9))
+
+            self._bind_preset_row(row_card, name, selected, fg_color, hover_color)
+
+    def _bind_preset_row(
+        self,
+        row_card: ctk.CTkFrame,
+        preset_name: str,
+        selected: bool,
+        fg_color: tuple[str, str],
+        hover_color: tuple[str, str],
+    ) -> None:
+        def select_preset(_event: object | None = None) -> None:
+            self._select_preset(preset_name)
+
+        def show_hover(_event: object | None = None) -> None:
+            if not selected:
+                row_card.configure(fg_color=hover_color)
+
+        def show_normal(_event: object | None = None) -> None:
+            row_card.configure(fg_color=fg_color)
+
+        row_card.bind("<Button-1>", select_preset)
+        row_card.bind("<Enter>", show_hover)
+        row_card.bind("<Leave>", show_normal)
+        for child in row_card.winfo_children():
+            child.bind("<Button-1>", select_preset)
 
     def _select_preset(self, preset_name: str) -> None:
         self._selected_preset_name = preset_name
@@ -436,7 +504,7 @@ class MainWindow:
             )
             self.detail_badge.configure(text="No preset")
             self._render_program_details([])
-            self.run_btn.configure(state="disabled", fg_color=("#b7c8c2", "#26443b"), hover_color=("#b7c8c2", "#26443b"))
+            self.run_btn.configure(state="disabled", fg_color=DISABLED, hover_color=DISABLED)
             self.edit_btn.configure(state="disabled")
             return
 
@@ -448,7 +516,10 @@ class MainWindow:
         )
 
         if programs:
-            subtitle = f"Launches and moves {self._preset_list_subtitle(preset).lower()}."
+            subtitle = (
+                f"{program_count} program{'s' if program_count != 1 else ''} configured. "
+                f"Targets: {self._display_summary(programs)}."
+            )
         else:
             subtitle = "No programs are configured for this preset."
         self.detail_subtitle.configure(text=subtitle)
@@ -464,62 +535,96 @@ class MainWindow:
 
         if not programs:
             empty_card = ctk.CTkFrame(self.program_details_frame)
-            style_card(empty_card, fg_color=SURFACE_ALT, corner_radius=16)
+            style_card(empty_card, fg_color=SURFACE_ALT)
             empty_card.grid(row=0, column=0, sticky="ew")
             ctk.CTkLabel(
                 empty_card,
                 text="No programs configured.",
-                font=font(12, "bold"),
+                font=font(11, "bold"),
                 text_color=TEXT_MUTED,
                 anchor="w",
-            ).pack(fill="x", padx=14, pady=14)
+            ).pack(fill="x", padx=12, pady=12)
             return
 
         for index, program in enumerate(programs, start=1):
             card = ctk.CTkFrame(self.program_details_frame)
-            style_card(card, corner_radius=16)
-            card.grid(row=index - 1, column=0, sticky="ew", pady=(0, 10))
+            style_card(card, fg_color=("#fbfcfe", "#151a20"))
+            card.grid(row=index - 1, column=0, sticky="ew", pady=(0, 8))
             card.grid_columnconfigure(0, weight=1)
 
             header = ctk.CTkFrame(card, fg_color="transparent")
-            header.grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 6))
-            header.grid_columnconfigure(0, weight=1)
+            header.grid(row=0, column=0, sticky="ew", padx=12, pady=(9, 6))
+            header.grid_columnconfigure(1, weight=1)
 
             ctk.CTkLabel(
                 header,
-                text=f"{index}. {self._program_label(program, index)}",
-                font=font(13, "bold"),
-                anchor="w",
-            ).grid(row=0, column=0, sticky="w")
+                text=str(index),
+                width=22,
+                height=22,
+                font=font(10, "bold"),
+                fg_color=SURFACE_MUTED,
+                corner_radius=11,
+            ).grid(row=0, column=0, sticky="w", padx=(0, 8))
 
             ctk.CTkLabel(
                 header,
-                text=str(program.get("display_name", "-")) or "-",
-                font=font(11, "bold"),
-                text_color=TEXT_MUTED,
-                anchor="e",
-            ).grid(row=0, column=1, sticky="e", padx=(12, 0))
-
-            detail_lines = [
-                f"Executable: {str(program.get('executable_path', '')).strip() or '-'}",
-                f"Arguments: {str(program.get('launch_args', '')).strip() or 'No extra arguments'}",
-                (
-                    "Working Folder: "
-                    f"{str(program.get('working_directory', '')).strip() or 'Uses executable folder automatically'}"
-                ),
-                (
-                    "Window Hint: "
-                    f"{str(program.get('window_title_hint', '')).strip() or 'Auto-detect by new window / process'}"
-                ),
-            ]
-            ctk.CTkLabel(
-                card,
-                text="\n".join(detail_lines),
+                text=self._program_label(program, index),
                 font=font(12, "bold"),
                 anchor="w",
                 justify="left",
-                wraplength=640,
-            ).grid(row=1, column=0, sticky="ew", padx=14, pady=(0, 14))
+                wraplength=360,
+            ).grid(row=0, column=1, sticky="w")
+
+            ctk.CTkLabel(
+                header,
+                text=self._short_display_name(str(program.get("display_name", ""))),
+                font=font(10, "bold"),
+                fg_color=("#eef2f7", "#222b36"),
+                text_color=TEXT_MUTED,
+                corner_radius=999,
+                padx=8,
+                pady=3,
+                anchor="e",
+            ).grid(row=0, column=2, sticky="e", padx=(12, 0))
+
+            fields = [
+                ("Executable", str(program.get("executable_path", "")).strip() or "-"),
+                (
+                    "Arguments",
+                    str(program.get("launch_args", "")).strip() or "No extra arguments",
+                ),
+                (
+                    "Folder",
+                    str(program.get("working_directory", "")).strip()
+                    or "Uses executable folder automatically",
+                ),
+                (
+                    "Hint",
+                    str(program.get("window_title_hint", "")).strip()
+                    or "Auto-detect by new window / process",
+                ),
+            ]
+            field_grid = ctk.CTkFrame(card, fg_color="transparent")
+            field_grid.grid(row=1, column=0, sticky="ew", padx=12, pady=(0, 10))
+            field_grid.grid_columnconfigure(1, weight=1)
+
+            for field_row, (label, value) in enumerate(fields):
+                ctk.CTkLabel(
+                    field_grid,
+                    text=label,
+                    width=70,
+                    font=font(10, "bold"),
+                    text_color=TEXT_MUTED,
+                    anchor="w",
+                ).grid(row=field_row, column=0, sticky="nw", pady=(0, 2))
+                ctk.CTkLabel(
+                    field_grid,
+                    text=value,
+                    font=font(10),
+                    anchor="w",
+                    justify="left",
+                    wraplength=610,
+                ).grid(row=field_row, column=1, sticky="ew", pady=(0, 3))
 
     def minimize_to_tray(self) -> None:
         self.root.withdraw()

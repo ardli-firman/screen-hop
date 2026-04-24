@@ -20,7 +20,8 @@ from src.browser_move.ui_theme import (
     ACCENT,
     ACCENT_HOVER,
     BORDER,
-    DANGER,
+    INNER_RADIUS,
+    MODAL_CONTENT_MAX_WIDTH,
     MODAL_GEOMETRY,
     MODAL_MIN_SIZE,
     SUCCESS,
@@ -64,34 +65,39 @@ class SettingsWindow:
         self.window.transient(self.parent)
         self._center_window()
 
-        shell = ctk.CTkFrame(self.window, fg_color="transparent")
-        shell.pack(fill="both", expand=True, padx=18, pady=18)
+        shell = ctk.CTkFrame(
+            self.window,
+            fg_color="transparent",
+            width=MODAL_CONTENT_MAX_WIDTH,
+        )
+        shell.pack(fill="y", expand=True, padx=10, pady=10)
+        shell.pack_propagate(False)
 
         main_card = ctk.CTkFrame(shell)
         style_panel(main_card)
         main_card.pack(fill="both", expand=True)
 
         header = ctk.CTkFrame(main_card, fg_color="transparent")
-        header.pack(fill="x", padx=22, pady=(20, 14))
+        header.pack(fill="x", padx=14, pady=(12, 8))
 
         ctk.CTkLabel(
             header,
             text=f"{APP_NAME} Settings",
-            font=font(20, "bold"),
+            font=font(17, "bold"),
             anchor="w",
         ).pack(fill="x")
         ctk.CTkLabel(
             header,
-            text="Tune the control panel, close behavior, and preset-based shortcuts in one place.",
-            font=font(12),
+            text="Theme, close behavior, startup, and shortcut targets.",
+            font=font(11),
             text_color=TEXT_MUTED,
             anchor="w",
             justify="left",
-            wraplength=620,
-        ).pack(fill="x", pady=(4, 0))
+            wraplength=650,
+        ).pack(fill="x", pady=(2, 0))
 
         content = ctk.CTkScrollableFrame(main_card, fg_color="transparent")
-        content.pack(fill="both", expand=True, padx=18, pady=(0, 12))
+        content.pack(fill="both", expand=True, padx=12, pady=(0, 8))
 
         appearance_body = self._create_section(
             content,
@@ -99,35 +105,35 @@ class SettingsWindow:
             description="Adjust theme and what happens when you close the main window.",
         )
 
-        ctk.CTkLabel(appearance_body, text="Theme", font=font(12, "bold"), anchor="w").grid(
-            row=0, column=0, sticky="w", padx=(0, 12), pady=(0, 12)
+        ctk.CTkLabel(appearance_body, text="Theme", font=font(11, "bold"), anchor="w").grid(
+            row=0, column=0, sticky="w", padx=(0, 12), pady=(0, 10)
         )
         self.theme_combo = ctk.CTkComboBox(
             appearance_body,
             values=["Dark", "Light", "System"],
             state="readonly",
-            height=38,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         self.theme_combo.set(self.config.get("theme", "System"))
-        self.theme_combo.grid(row=0, column=1, sticky="ew", pady=(0, 12))
+        self.theme_combo.grid(row=0, column=1, sticky="ew", pady=(0, 10))
 
         ctk.CTkLabel(
             appearance_body,
             text="Close Button",
-            font=font(12, "bold"),
+            font=font(11, "bold"),
             anchor="w",
         ).grid(row=1, column=0, sticky="w", padx=(0, 12))
         self.close_combo = ctk.CTkComboBox(
             appearance_body,
             values=["Exit", "Minimize to Tray"],
             state="readonly",
-            height=38,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         self.close_combo.set(self.config.get("close_behavior", "Minimize to Tray"))
         self.close_combo.grid(row=1, column=1, sticky="ew")
@@ -143,16 +149,16 @@ class SettingsWindow:
             startup_body,
             text="Auto-run selected preset on Windows startup",
             variable=self.auto_start_var,
-            font=font(12, "bold"),
-            checkbox_width=20,
-            checkbox_height=20,
+            font=font(11, "bold"),
+            checkbox_width=18,
+            checkbox_height=18,
         )
         self.auto_start_check.grid(row=0, column=0, columnspan=2, sticky="w")
 
         ctk.CTkLabel(
             startup_body,
             text="Startup uses the preset selected in Shortcut Target below.",
-            font=font(11),
+            font=font(10),
             text_color=TEXT_MUTED,
             anchor="w",
         ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
@@ -166,9 +172,9 @@ class SettingsWindow:
         ctk.CTkLabel(
             shortcuts_body,
             text="Preset",
-            font=font(12, "bold"),
+            font=font(11, "bold"),
             anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=(0, 12), pady=(0, 12))
+        ).grid(row=0, column=0, sticky="w", padx=(0, 12), pady=(0, 10))
 
         shortcut_values = self.preset_names if self.preset_names else ["No preset available"]
         shortcut_state = "readonly" if self.preset_names else "disabled"
@@ -177,12 +183,12 @@ class SettingsWindow:
             values=shortcut_values,
             state=shortcut_state,
             command=self._on_shortcut_preset_changed,
-            height=38,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
-        self.shortcut_preset_combo.grid(row=0, column=1, sticky="ew", pady=(0, 12))
+        self.shortcut_preset_combo.grid(row=0, column=1, sticky="ew", pady=(0, 10))
         if self._selected_shortcut_preset:
             self.shortcut_preset_combo.set(self._selected_shortcut_preset)
         else:
@@ -191,29 +197,29 @@ class SettingsWindow:
         ctk.CTkLabel(
             shortcuts_body,
             text="Startup Status",
-            font=font(12, "bold"),
+            font=font(11, "bold"),
             anchor="w",
-        ).grid(row=1, column=0, sticky="w", padx=(0, 12), pady=(0, 12))
+        ).grid(row=1, column=0, sticky="w", padx=(0, 12), pady=(0, 10))
 
         self.startup_status_value = ctk.CTkLabel(
             shortcuts_body,
             text="Checking...",
-            font=font(12, "bold"),
+            font=font(11, "bold"),
             anchor="e",
         )
-        self.startup_status_value.grid(row=1, column=1, sticky="e", pady=(0, 12))
+        self.startup_status_value.grid(row=1, column=1, sticky="e", pady=(0, 10))
 
         desktop_btn = ctk.CTkButton(
             shortcuts_body,
             text="Create Desktop Shortcut",
             command=self.create_desktop_shortcut,
-            height=40,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             fg_color=SURFACE_ALT,
             hover_color=SURFACE,
             border_width=1,
             border_color=BORDER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         desktop_btn.grid(row=2, column=0, sticky="ew", padx=(0, 8))
 
@@ -221,29 +227,29 @@ class SettingsWindow:
             shortcuts_body,
             text="Add to Startup",
             command=self.toggle_startup,
-            height=40,
-            corner_radius=14,
+            height=36,
+            corner_radius=INNER_RADIUS,
             fg_color=ACCENT,
             hover_color=ACCENT_HOVER,
-            font=font(12, "bold"),
+            font=font(11, "bold"),
         )
         self.startup_btn.grid(row=2, column=1, sticky="ew", padx=(8, 0))
 
         footer = ctk.CTkFrame(main_card, fg_color="transparent")
-        footer.pack(fill="x", padx=22, pady=(0, 20))
+        footer.pack(fill="x", padx=14, pady=(0, 12))
 
         cancel_btn = ctk.CTkButton(
             footer,
             text="Cancel",
             command=self.window.destroy,
-            height=42,
+            height=38,
             width=130,
-            corner_radius=14,
+            corner_radius=INNER_RADIUS,
             fg_color=SURFACE_ALT,
             hover_color=SURFACE,
             border_width=1,
             border_color=BORDER,
-            font=font(13, "bold"),
+            font=font(12, "bold"),
         )
         cancel_btn.pack(side="right", padx=(0, 10))
 
@@ -251,12 +257,12 @@ class SettingsWindow:
             footer,
             text="Apply",
             command=self.apply_settings,
-            height=42,
+            height=38,
             width=150,
-            corner_radius=14,
+            corner_radius=INNER_RADIUS,
             fg_color=ACCENT,
             hover_color=ACCENT_HOVER,
-            font=font(13, "bold"),
+            font=font(12, "bold"),
         )
         apply_btn.pack(side="right")
 
@@ -311,29 +317,29 @@ class SettingsWindow:
     ) -> ctk.CTkFrame:
         section = ctk.CTkFrame(parent)
         style_card(section)
-        section.pack(fill="x", pady=(0, 12))
+        section.pack(fill="x", pady=(0, 10))
 
-        ctk.CTkLabel(section, text=title, font=font(15, "bold"), anchor="w").pack(
-            fill="x", padx=16, pady=(14, 2)
+        ctk.CTkLabel(section, text=title, font=font(13, "bold"), anchor="w").pack(
+            fill="x", padx=12, pady=(12, 2)
         )
         ctk.CTkLabel(
             section,
             text=description,
-            font=font(11),
+            font=font(10),
             text_color=TEXT_MUTED,
             anchor="w",
             justify="left",
-            wraplength=620,
-        ).pack(fill="x", padx=16, pady=(0, 12))
+            wraplength=650,
+        ).pack(fill="x", padx=12, pady=(0, 10))
 
         body = ctk.CTkFrame(section, fg_color="transparent")
-        body.pack(fill="x", padx=16, pady=(0, 14))
+        body.pack(fill="x", padx=12, pady=(0, 12))
         body.grid_columnconfigure(1, weight=1)
         return body
 
     def _center_window(self) -> None:
-        window_width = 760
-        window_height = 680
+        window_width = 720
+        window_height = 640
 
         self.parent.update_idletasks()
         parent_width = self.parent.winfo_width()

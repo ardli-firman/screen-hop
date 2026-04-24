@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import customtkinter as ctk
 
 from src.browser_move import APP_NAME, __version__
-from src.browser_move.config import consume_runtime_notices, load_config
+from src.browser_move.config import consume_runtime_notices, get_preset_programs, load_config
 from src.browser_move.preset_form import PresetForm
 from src.browser_move.preset_runner import execute_preset
 from src.browser_move.settings_window import SettingsWindow
@@ -282,39 +283,9 @@ class MainWindow:
         self.details_grid.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
         self.details_grid.grid_columnconfigure(0, weight=1)
 
-        self.detail_rows: dict[str, ctk.CTkLabel] = {}
-        detail_specs = [
-            ("Executable", "executable_path"),
-            ("Arguments", "launch_args"),
-            ("Working Folder", "working_directory"),
-            ("Window Hint", "window_title_hint"),
-            ("Target Display", "display_name"),
-        ]
-        for index, (label_text, key) in enumerate(detail_specs):
-            row = ctk.CTkFrame(self.details_grid)
-            style_card(row, corner_radius=16)
-            row.grid(row=index, column=0, sticky="ew", pady=(0, 10))
-            row.grid_columnconfigure(0, weight=0)
-            row.grid_columnconfigure(1, weight=1)
-
-            ctk.CTkLabel(
-                row,
-                text=label_text,
-                font=font(11, "bold"),
-                text_color=TEXT_MUTED,
-                anchor="w",
-            ).grid(row=0, column=0, sticky="nw", padx=(14, 12), pady=14)
-
-            value_label = ctk.CTkLabel(
-                row,
-                text="-",
-                font=font(12, "bold"),
-                anchor="w",
-                justify="left",
-                wraplength=520,
-            )
-            value_label.grid(row=0, column=1, sticky="ew", padx=(0, 14), pady=14)
-            self.detail_rows[key] = value_label
+        self.program_details_frame = ctk.CTkFrame(self.details_grid, fg_color="transparent")
+        self.program_details_frame.grid(row=0, column=0, sticky="nsew")
+        self.program_details_frame.grid_columnconfigure(0, weight=1)
 
         self.status_bar = StatusBar(self.root)
         self.status_bar.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
@@ -343,13 +314,16 @@ class MainWindow:
 
         filtered: list[dict] = []
         for preset in presets:
-            searchable = " ".join(
-                [
-                    str(preset.get("name", "")),
-                    str(preset.get("executable_path", "")),
-                    str(preset.get("display_name", "")),
-                ]
-            ).lower()
+            search_parts = [str(preset.get("name", ""))]
+            for index, program in enumerate(self._preset_programs(preset), start=1):
+                search_parts.extend(
+                    [
+                        self._program_label(program, index),
+                        str(program.get("executable_path", "")),
+                        str(program.get("display_name", "")),
+                    ]
+                )
+            searchable = " ".join(search_parts).lower()
             if search_term in searchable:
                 filtered.append(preset)
         return filtered
@@ -359,6 +333,37 @@ class MainWindow:
             if preset.get("name") == name:
                 return preset
         return None
+
+    def _program_label(self, program: dict, index: int) -> str:
+        label = str(program.get("label", "")).strip()
+        if label:
+            return label
+
+        executable_path = str(program.get("executable_path", "")).strip()
+        if executable_path:
+            return Path(executable_path).stem or f"Program {index}"
+        return f"Program {index}"
+
+    def _preset_programs(self, preset: dict) -> list[dict[str, str]]:
+        return get_preset_programs(preset)
+
+    def _preset_list_subtitle(self, preset: dict) -> str:
+        programs = self._preset_programs(preset)
+        if not programs:
+            return "No programs configured"
+
+        count_text = f"{len(programs)} program{'s' if len(programs) != 1 else ''}"
+        displays: list[str] = []
+        for program in programs:
+            display_name = str(program.get("display_name", "")).strip()
+            if display_name and display_name not in displays:
+                displays.append(display_name)
+
+        if not displays:
+            return count_text
+        if len(displays) == 1:
+            return f"{count_text} - {displays[0]}"
+        return f"{count_text} - {displays[0]} + {len(displays) - 1} more"
 
     def _sync_notice_banner(self) -> None:
         if self._runtime_notices:
@@ -395,14 +400,14 @@ class MainWindow:
 
         for row_index, preset in enumerate(filtered_presets):
             name = str(preset.get("name", "Unnamed Preset"))
-            display_name = str(preset.get("display_name", "No display selected"))
+            subtitle = self._preset_list_subtitle(preset)
             selected = name == self._selected_preset_name
             fg_color = ("#ddf6ef", "#143129") if selected else SURFACE_ALT
             border_color = ACCENT if selected else BORDER
 
             row_button = ctk.CTkButton(
                 self.preset_list_frame,
-                text=f"{name}\n{display_name}",
+                text=f"{name}\n{subtitle}",
                 command=lambda preset_name=name: self._select_preset(preset_name),
                 height=68,
                 corner_radius=16,
@@ -429,33 +434,92 @@ class MainWindow:
             self.detail_subtitle.configure(
                 text="Choose a preset on the left or create a compact app preset for your workflow."
             )
-            for label in self.detail_rows.values():
-                label.configure(text="-")
+            self.detail_badge.configure(text="No preset")
+            self._render_program_details([])
             self.run_btn.configure(state="disabled", fg_color=("#b7c8c2", "#26443b"), hover_color=("#b7c8c2", "#26443b"))
             self.edit_btn.configure(state="disabled")
             return
 
         self.detail_title.configure(text=str(preset.get("name", "Preset")))
-        subtitle = str(preset.get("display_name", "No display selected"))
-        title_hint = str(preset.get("window_title_hint", "")).strip()
-        if title_hint:
-            subtitle = f"Moves new window to {subtitle}. Title hint: {title_hint}"
+        programs = self._preset_programs(preset)
+        program_count = len(programs)
+        self.detail_badge.configure(
+            text=f"{program_count} program{'s' if program_count != 1 else ''}"
+        )
+
+        if programs:
+            subtitle = f"Launches and moves {self._preset_list_subtitle(preset).lower()}."
         else:
-            subtitle = f"Moves new window to {subtitle}."
+            subtitle = "No programs are configured for this preset."
         self.detail_subtitle.configure(text=subtitle)
 
-        values = {
-            "executable_path": str(preset.get("executable_path", "-")) or "-",
-            "launch_args": str(preset.get("launch_args", "")).strip() or "No extra arguments",
-            "working_directory": str(preset.get("working_directory", "")).strip() or "Uses executable folder automatically",
-            "window_title_hint": title_hint or "Auto-detect by new window / process",
-            "display_name": str(preset.get("display_name", "-")) or "-",
-        }
-        for key, label in self.detail_rows.items():
-            label.configure(text=values.get(key, "-"))
+        self._render_program_details(programs)
 
         self.run_btn.configure(state="normal", fg_color=ACCENT, hover_color=ACCENT_HOVER)
         self.edit_btn.configure(state="normal")
+
+    def _render_program_details(self, programs: list[dict[str, str]]) -> None:
+        for child in self.program_details_frame.winfo_children():
+            child.destroy()
+
+        if not programs:
+            empty_card = ctk.CTkFrame(self.program_details_frame)
+            style_card(empty_card, fg_color=SURFACE_ALT, corner_radius=16)
+            empty_card.grid(row=0, column=0, sticky="ew")
+            ctk.CTkLabel(
+                empty_card,
+                text="No programs configured.",
+                font=font(12, "bold"),
+                text_color=TEXT_MUTED,
+                anchor="w",
+            ).pack(fill="x", padx=14, pady=14)
+            return
+
+        for index, program in enumerate(programs, start=1):
+            card = ctk.CTkFrame(self.program_details_frame)
+            style_card(card, corner_radius=16)
+            card.grid(row=index - 1, column=0, sticky="ew", pady=(0, 10))
+            card.grid_columnconfigure(0, weight=1)
+
+            header = ctk.CTkFrame(card, fg_color="transparent")
+            header.grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 6))
+            header.grid_columnconfigure(0, weight=1)
+
+            ctk.CTkLabel(
+                header,
+                text=f"{index}. {self._program_label(program, index)}",
+                font=font(13, "bold"),
+                anchor="w",
+            ).grid(row=0, column=0, sticky="w")
+
+            ctk.CTkLabel(
+                header,
+                text=str(program.get("display_name", "-")) or "-",
+                font=font(11, "bold"),
+                text_color=TEXT_MUTED,
+                anchor="e",
+            ).grid(row=0, column=1, sticky="e", padx=(12, 0))
+
+            detail_lines = [
+                f"Executable: {str(program.get('executable_path', '')).strip() or '-'}",
+                f"Arguments: {str(program.get('launch_args', '')).strip() or 'No extra arguments'}",
+                (
+                    "Working Folder: "
+                    f"{str(program.get('working_directory', '')).strip() or 'Uses executable folder automatically'}"
+                ),
+                (
+                    "Window Hint: "
+                    f"{str(program.get('window_title_hint', '')).strip() or 'Auto-detect by new window / process'}"
+                ),
+            ]
+            ctk.CTkLabel(
+                card,
+                text="\n".join(detail_lines),
+                font=font(12, "bold"),
+                anchor="w",
+                justify="left",
+                wraplength=640,
+            ).grid(row=1, column=0, sticky="ew", padx=14, pady=(0, 14))
 
     def minimize_to_tray(self) -> None:
         self.root.withdraw()

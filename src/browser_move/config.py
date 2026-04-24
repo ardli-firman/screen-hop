@@ -19,8 +19,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "startup_preset": "",
 }
 
-PRESET_KEYS = (
-    "name",
+PROGRAM_KEYS = (
+    "label",
     "executable_path",
     "launch_args",
     "working_directory",
@@ -28,6 +28,7 @@ PRESET_KEYS = (
     "display_id",
     "display_name",
 )
+PRESET_KEYS = ("name", "programs")
 LEGACY_PRESET_FIELDS = {"browser_type", "browser_path", "url", "kiosk_mode"}
 VALID_THEMES = {"Dark", "Light", "System"}
 VALID_CLOSE_BEHAVIORS = {"Exit", "Minimize to Tray"}
@@ -61,27 +62,52 @@ def _normalize_bool(value: Any, default: bool = False) -> bool:
 
 
 def _is_legacy_preset(preset: dict[str, Any]) -> bool:
-    return bool(LEGACY_PRESET_FIELDS.intersection(preset.keys())) or "executable_path" not in preset
+    return bool(LEGACY_PRESET_FIELDS.intersection(preset.keys()))
 
 
-def _normalize_preset(preset: dict[str, Any]) -> dict[str, str] | None:
-    name = _normalize_text(preset.get("name"))
-    executable_path = _normalize_text(preset.get("executable_path"))
-    display_id = _normalize_text(preset.get("display_id") or preset.get("monitor_id"))
-    display_name = _normalize_text(preset.get("display_name") or preset.get("monitor_name"))
+def _normalize_program(program: dict[str, Any]) -> dict[str, str] | None:
+    executable_path = _normalize_text(program.get("executable_path"))
+    display_id = _normalize_text(program.get("display_id") or program.get("monitor_id"))
+    display_name = _normalize_text(program.get("display_name") or program.get("monitor_name"))
 
-    if not name or not executable_path or not display_id:
+    if not executable_path or not display_id:
         return None
 
     return {
-        "name": name,
+        "label": _normalize_text(program.get("label")),
         "executable_path": executable_path,
-        "launch_args": _normalize_text(preset.get("launch_args")),
-        "working_directory": _normalize_text(preset.get("working_directory")),
-        "window_title_hint": _normalize_text(preset.get("window_title_hint")),
+        "launch_args": _normalize_text(program.get("launch_args")),
+        "working_directory": _normalize_text(program.get("working_directory")),
+        "window_title_hint": _normalize_text(program.get("window_title_hint")),
         "display_id": display_id,
         "display_name": display_name or display_id,
     }
+
+
+def _normalize_preset(preset: dict[str, Any]) -> dict[str, Any] | None:
+    name = _normalize_text(preset.get("name"))
+    if not name:
+        return None
+
+    raw_programs = preset.get("programs")
+    if raw_programs is None:
+        raw_programs = [preset]
+
+    if not isinstance(raw_programs, list):
+        return None
+
+    programs: list[dict[str, str]] = []
+    for program in raw_programs:
+        if not isinstance(program, dict):
+            continue
+        normalized_program = _normalize_program(program)
+        if normalized_program:
+            programs.append(normalized_program)
+
+    if not programs:
+        return None
+
+    return {"name": name, "programs": programs}
 
 
 def _normalize_config(raw_data: dict[str, Any]) -> tuple[dict[str, Any], bool]:
@@ -113,7 +139,7 @@ def _normalize_config(raw_data: dict[str, Any]) -> tuple[dict[str, Any], bool]:
         mutated = True
         raw_presets = []
 
-    normalized_presets: list[dict[str, str]] = []
+    normalized_presets: list[dict[str, Any]] = []
     legacy_detected = False
 
     for preset in raw_presets:
@@ -129,6 +155,21 @@ def _normalize_config(raw_data: dict[str, Any]) -> tuple[dict[str, Any], bool]:
         if normalized_preset is None:
             mutated = True
             continue
+
+        raw_programs = preset.get("programs")
+        if raw_programs is None:
+            mutated = True
+        elif not isinstance(raw_programs, list):
+            mutated = True
+        else:
+            valid_raw_programs = [item for item in raw_programs if isinstance(item, dict)]
+            if len(valid_raw_programs) != len(normalized_preset["programs"]):
+                mutated = True
+            if any(
+                "monitor_id" in item or "monitor_name" in item
+                for item in valid_raw_programs
+            ):
+                mutated = True
         normalized_presets.append(normalized_preset)
 
     if legacy_detected:
@@ -158,11 +199,26 @@ def _normalize_config(raw_data: dict[str, Any]) -> tuple[dict[str, Any], bool]:
 def _serializable_config(data: dict[str, Any]) -> dict[str, Any]:
     config, _ = _normalize_config(data)
     config["presets"] = [
-        {key: preset.get(key, "") for key in PRESET_KEYS}
+        {
+            "name": preset.get("name", ""),
+            "programs": [
+                {key: program.get(key, "") for key in PROGRAM_KEYS}
+                for program in preset.get("programs", [])
+                if isinstance(program, dict)
+            ],
+        }
         for preset in config.get("presets", [])
         if isinstance(preset, dict)
     ]
     return config
+
+
+def get_preset_programs(preset: dict[str, Any]) -> list[dict[str, str]]:
+    """Return normalized program entries for a preset-like dictionary."""
+    normalized = _normalize_preset(preset) if isinstance(preset, dict) else None
+    if not normalized:
+        return []
+    return [dict(program) for program in normalized["programs"]]
 
 
 def load_config() -> dict[str, Any]:

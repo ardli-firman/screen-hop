@@ -9,7 +9,7 @@ from typing import Callable
 
 import customtkinter as ctk
 
-from src.browser_move.config import load_config, save_config
+from src.browser_move.config import get_preset_programs, load_config, save_config
 from src.browser_move.launcher import is_valid_executable_path
 from src.browser_move.monitors import get_display_choices
 from src.browser_move.preset_templates import build_preset_template, get_template_choices
@@ -49,8 +49,24 @@ class PresetForm:
         self._template_id_by_label: dict[str, str] = {}
         self._advanced_visible = False
         self._feedback_color = TEXT_MUTED
+        self._program_index_by_label: dict[str, int] = {}
+        self._selected_program_index = 0
+        self.programs = get_preset_programs(preset) if preset else []
+        if not self.programs:
+            self.programs = [self._blank_program()]
 
         self.setup_ui()
+
+    def _blank_program(self) -> dict[str, str]:
+        return {
+            "label": "",
+            "executable_path": "",
+            "launch_args": "",
+            "working_directory": "",
+            "window_title_hint": "",
+            "display_id": "",
+            "display_name": "",
+        }
 
     def setup_ui(self) -> None:
         self.window = ctk.CTkToplevel(self.parent)
@@ -103,9 +119,19 @@ class PresetForm:
             helper="Use a short name that still makes sense in tray and startup shortcuts.",
         )
 
+        self._create_program_manager(form_body, row=2)
+
+        self.program_label_entry = self._create_text_field(
+            form_body,
+            row=3,
+            label="Program Label",
+            placeholder="Queue browser / Player / Control panel",
+            helper="Optional. Used in status messages and the preset details view.",
+        )
+
         self.path_entry = self._create_browse_field(
             form_body,
-            row=2,
+            row=4,
             label="Executable Path",
             button_text="Browse",
             placeholder="C:\\Program Files\\App\\app.exe",
@@ -114,7 +140,7 @@ class PresetForm:
         )
 
         display_row = ctk.CTkFrame(form_body, fg_color="transparent")
-        display_row.grid(row=3, column=0, sticky="ew", pady=(0, 14))
+        display_row.grid(row=5, column=0, sticky="ew", pady=(0, 14))
         display_row.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -167,7 +193,7 @@ class PresetForm:
         self.refresh_monitor_choices()
 
         advanced_toggle_row = ctk.CTkFrame(form_body, fg_color="transparent")
-        advanced_toggle_row.grid(row=4, column=0, sticky="ew", pady=(4, 12))
+        advanced_toggle_row.grid(row=6, column=0, sticky="ew", pady=(4, 12))
         advanced_toggle_row.grid_columnconfigure(0, weight=1)
 
         self.advanced_toggle_btn = ctk.CTkButton(
@@ -186,7 +212,7 @@ class PresetForm:
 
         self.advanced_frame = ctk.CTkFrame(form_body)
         style_card(self.advanced_frame, fg_color=("#eff7ff", "#132033"), border_color=INFO)
-        self.advanced_frame.grid(row=5, column=0, sticky="ew", pady=(0, 14))
+        self.advanced_frame.grid(row=7, column=0, sticky="ew", pady=(0, 14))
         self.advanced_frame.grid_columnconfigure(0, weight=1)
 
         self.launch_args_entry = self._create_text_field(
@@ -280,6 +306,7 @@ class PresetForm:
         self.cancel_btn.grid(row=0, column=2, sticky="ew", padx=(8, 0))
 
         self._bind_clear_feedback(self.name_entry)
+        self._bind_clear_feedback(self.program_label_entry)
         self._bind_clear_feedback(self.path_entry)
         self._bind_clear_feedback(self.launch_args_entry)
         self._bind_clear_feedback(self.working_dir_entry)
@@ -288,11 +315,13 @@ class PresetForm:
         if self.preset:
             self._populate_fields()
             self._advanced_visible = any(
-                str(self.preset.get(key, "")).strip()
+                str(self.programs[self._selected_program_index].get(key, "")).strip()
                 for key in ("launch_args", "working_directory", "window_title_hint")
             )
         else:
             self.template_combo.set("Blank / Manual")
+            self._load_program(0)
+        self._sync_program_selector()
         self._sync_advanced_state()
 
     def _create_template_picker(
@@ -361,6 +390,94 @@ class PresetForm:
             justify="left",
             wraplength=620,
         ).grid(row=2, column=0, sticky="w", padx=14, pady=(6, 14))
+
+    def _create_program_manager(
+        self,
+        parent: ctk.CTkScrollableFrame,
+        row: int,
+    ) -> None:
+        program_row = ctk.CTkFrame(parent)
+        style_card(program_row, fg_color=("#f7fbf8", "#12251e"), border_color=SUCCESS)
+        program_row.grid(row=row, column=0, sticky="ew", pady=(0, 14))
+        program_row.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            program_row,
+            text="Programs",
+            font=font(12, "bold"),
+            anchor="w",
+        ).grid(row=0, column=0, sticky="w", padx=14, pady=(14, 6))
+
+        self.program_combo = ctk.CTkComboBox(
+            program_row,
+            values=["1. Program"],
+            state="readonly",
+            command=self._on_program_selected,
+            height=40,
+            corner_radius=14,
+            border_color=BORDER,
+            font=font(12, "bold"),
+        )
+        self.program_combo.grid(row=1, column=0, sticky="ew", padx=14)
+
+        button_row = ctk.CTkFrame(program_row, fg_color="transparent")
+        button_row.grid(row=2, column=0, sticky="ew", padx=14, pady=(10, 14))
+        for column in range(4):
+            button_row.grid_columnconfigure(column, weight=1)
+
+        self.add_program_btn = ctk.CTkButton(
+            button_row,
+            text="Add",
+            command=self.add_program,
+            height=36,
+            corner_radius=14,
+            fg_color=SURFACE_ALT,
+            hover_color=SURFACE,
+            border_width=1,
+            border_color=BORDER,
+            font=font(12, "bold"),
+        )
+        self.add_program_btn.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+
+        self.move_up_btn = ctk.CTkButton(
+            button_row,
+            text="Up",
+            command=self.move_program_up,
+            height=36,
+            corner_radius=14,
+            fg_color=SURFACE_ALT,
+            hover_color=SURFACE,
+            border_width=1,
+            border_color=BORDER,
+            font=font(12, "bold"),
+        )
+        self.move_up_btn.grid(row=0, column=1, sticky="ew", padx=6)
+
+        self.move_down_btn = ctk.CTkButton(
+            button_row,
+            text="Down",
+            command=self.move_program_down,
+            height=36,
+            corner_radius=14,
+            fg_color=SURFACE_ALT,
+            hover_color=SURFACE,
+            border_width=1,
+            border_color=BORDER,
+            font=font(12, "bold"),
+        )
+        self.move_down_btn.grid(row=0, column=2, sticky="ew", padx=6)
+
+        self.delete_program_btn = ctk.CTkButton(
+            button_row,
+            text="Delete",
+            command=self.delete_program,
+            height=36,
+            corner_radius=14,
+            fg_color=DANGER,
+            hover_color=("#b53d4d", "#dc2626"),
+            font=font(12, "bold"),
+        )
+        self.delete_program_btn.grid(row=0, column=3, sticky="ew", padx=(6, 0))
 
     def _create_text_field(
         self,
@@ -461,6 +578,157 @@ class PresetForm:
     def _bind_clear_feedback(self, entry: ctk.CTkEntry) -> None:
         entry.bind("<KeyRelease>", lambda _event: self.set_feedback("", TEXT_MUTED))
 
+    def _program_label(self, program: dict[str, str], index: int) -> str:
+        label = str(program.get("label", "")).strip()
+        if label:
+            return label
+
+        executable_path = str(program.get("executable_path", "")).strip()
+        if executable_path:
+            return Path(executable_path).stem or f"Program {index}"
+        return f"Program {index}"
+
+    def _program_combo_label(self, program: dict[str, str], index: int) -> str:
+        display_name = str(program.get("display_name", "")).strip() or "No display selected"
+        return f"{index}. {self._program_label(program, index)} - {display_name}"
+
+    def _capture_current_program(self) -> None:
+        if not hasattr(self, "path_entry"):
+            return
+        if not self.programs:
+            self.programs.append(self._blank_program())
+
+        index = max(0, min(self._selected_program_index, len(self.programs) - 1))
+        selected_display = self.monitor_combo.get().strip()
+        existing = dict(self.programs[index])
+        display_id = existing.get("display_id", "")
+        display_name = existing.get("display_name", "")
+        if selected_display in self._display_id_by_label:
+            display_id = self._display_id_by_label[selected_display]
+            display_name = selected_display
+
+        self.programs[index] = {
+            "label": self.program_label_entry.get().strip(),
+            "executable_path": self.path_entry.get().strip(),
+            "launch_args": self.launch_args_entry.get().strip(),
+            "working_directory": self.working_dir_entry.get().strip(),
+            "window_title_hint": self.window_hint_entry.get().strip(),
+            "display_id": display_id,
+            "display_name": display_name,
+        }
+
+    def _load_program(self, index: int) -> None:
+        if not self.programs:
+            self.programs.append(self._blank_program())
+
+        self._selected_program_index = max(0, min(index, len(self.programs) - 1))
+        program = self.programs[self._selected_program_index]
+
+        self._set_entry_value(self.program_label_entry, str(program.get("label", "")))
+        self._set_entry_value(self.path_entry, str(program.get("executable_path", "")))
+        self._set_entry_value(self.launch_args_entry, str(program.get("launch_args", "")))
+        self._set_entry_value(self.working_dir_entry, str(program.get("working_directory", "")))
+        self._set_entry_value(self.window_hint_entry, str(program.get("window_title_hint", "")))
+
+        saved_display_id = str(program.get("display_id", "")).strip()
+        saved_display_name = str(program.get("display_name", "")).strip()
+        if saved_display_id and saved_display_id in self._display_label_by_id:
+            self.monitor_combo.set(self._display_label_by_id[saved_display_id])
+        elif saved_display_name and saved_display_name in self._display_id_by_label:
+            self.monitor_combo.set(saved_display_name)
+        elif self._display_id_by_label:
+            self.monitor_combo.set(next(iter(self._display_id_by_label)))
+
+        self._advanced_visible = any(
+            str(program.get(key, "")).strip()
+            for key in ("launch_args", "working_directory", "window_title_hint")
+        )
+        if hasattr(self, "advanced_frame"):
+            self._sync_advanced_state()
+
+    def _sync_program_selector(self) -> None:
+        if not hasattr(self, "program_combo"):
+            return
+
+        self._program_index_by_label.clear()
+        labels: list[str] = []
+        for index, program in enumerate(self.programs, start=1):
+            label = self._program_combo_label(program, index)
+            labels.append(label)
+            self._program_index_by_label[label] = index - 1
+
+        if not labels:
+            labels = ["1. Program - No display selected"]
+            self._program_index_by_label[labels[0]] = 0
+
+        self.program_combo.configure(values=labels, state="readonly")
+        selected_index = max(0, min(self._selected_program_index, len(labels) - 1))
+        self.program_combo.set(labels[selected_index])
+
+        has_multiple = len(self.programs) > 1
+        self.delete_program_btn.configure(state="normal" if has_multiple else "disabled")
+        self.move_up_btn.configure(state="normal" if selected_index > 0 else "disabled")
+        self.move_down_btn.configure(
+            state="normal" if selected_index < len(self.programs) - 1 else "disabled"
+        )
+
+    def _on_program_selected(self, choice: str) -> None:
+        next_index = self._program_index_by_label.get(choice, self._selected_program_index)
+        if next_index == self._selected_program_index:
+            return
+
+        self._capture_current_program()
+        self._load_program(next_index)
+        self._sync_program_selector()
+        self.set_feedback("", TEXT_MUTED)
+
+    def add_program(self) -> None:
+        self._capture_current_program()
+        self.programs.append(self._blank_program())
+        self._load_program(len(self.programs) - 1)
+        self._sync_program_selector()
+        self.set_feedback("New program added. Fill its executable and target display.", INFO)
+
+    def delete_program(self) -> None:
+        if len(self.programs) <= 1:
+            self.set_feedback("A preset needs at least one program.", DANGER)
+            return
+
+        current_label = self._program_label(
+            self.programs[self._selected_program_index],
+            self._selected_program_index + 1,
+        )
+        confirm = messagebox.askyesno(
+            title="Delete Program",
+            message=f"Delete program '{current_label}' from this preset?",
+            parent=self.window,
+        )
+        if not confirm:
+            return
+
+        del self.programs[self._selected_program_index]
+        self._load_program(min(self._selected_program_index, len(self.programs) - 1))
+        self._sync_program_selector()
+        self.set_feedback("Program removed from preset.", INFO)
+
+    def move_program_up(self) -> None:
+        if self._selected_program_index <= 0:
+            return
+        self._capture_current_program()
+        index = self._selected_program_index
+        self.programs[index - 1], self.programs[index] = self.programs[index], self.programs[index - 1]
+        self._load_program(index - 1)
+        self._sync_program_selector()
+
+    def move_program_down(self) -> None:
+        if self._selected_program_index >= len(self.programs) - 1:
+            return
+        self._capture_current_program()
+        index = self._selected_program_index
+        self.programs[index + 1], self.programs[index] = self.programs[index], self.programs[index + 1]
+        self._load_program(index + 1)
+        self._sync_program_selector()
+
     def toggle_advanced(self) -> None:
         self._advanced_visible = not self._advanced_visible
         self._sync_advanced_state()
@@ -496,18 +764,8 @@ class PresetForm:
 
     def _populate_fields(self) -> None:
         self.name_entry.insert(0, str(self.preset.get("name", "")))
-        self.path_entry.insert(0, str(self.preset.get("executable_path", "")))
-        self.launch_args_entry.insert(0, str(self.preset.get("launch_args", "")))
-        self.working_dir_entry.insert(0, str(self.preset.get("working_directory", "")))
-        self.window_hint_entry.insert(0, str(self.preset.get("window_title_hint", "")))
         self.template_combo.set("Blank / Manual")
-
-        saved_display_id = str(self.preset.get("display_id", "")).strip()
-        saved_display_name = str(self.preset.get("display_name", "")).strip()
-        if saved_display_id and saved_display_id in self._display_label_by_id:
-            self.monitor_combo.set(self._display_label_by_id[saved_display_id])
-        elif saved_display_name and saved_display_name in self._display_id_by_label:
-            self.monitor_combo.set(saved_display_name)
+        self._load_program(0)
 
     def refresh_monitor_choices(self) -> None:
         current_label = self.monitor_combo.get() if hasattr(self, "monitor_combo") else ""
@@ -585,7 +843,11 @@ class PresetForm:
             self.set_feedback("Selected template is not available.", DANGER)
             return
 
-        self._set_entry_value(self.name_entry, str(template_data.get("name", "")))
+        template_name = str(template_data.get("name", "")).strip()
+        if template_name and not self.preset and not self.name_entry.get().strip():
+            self._set_entry_value(self.name_entry, template_name)
+
+        self._set_entry_value(self.program_label_entry, template_name)
         self._set_entry_value(
             self.path_entry, str(template_data.get("executable_path", ""))
         )
@@ -601,6 +863,8 @@ class PresetForm:
 
         self._advanced_visible = True
         self._sync_advanced_state()
+        self._capture_current_program()
+        self._sync_program_selector()
 
         template_notice = str(template_data.get("_template_notice", "")).strip()
         if template_notice:
@@ -613,10 +877,8 @@ class PresetForm:
         self.feedback_label.configure(text=message, text_color=color)
 
     def validate_form(self) -> tuple[bool, str]:
+        self._capture_current_program()
         name = self.name_entry.get().strip()
-        executable_path = self.path_entry.get().strip()
-        working_directory = self.working_dir_entry.get().strip()
-        selected_display = self.monitor_combo.get().strip()
 
         if not name:
             return False, "Preset name is required."
@@ -630,16 +892,25 @@ class PresetForm:
                 continue
             return False, f"Preset name '{name}' already exists."
 
-        if not executable_path:
-            return False, "Executable path is required."
-        if not is_valid_executable_path(executable_path):
-            return False, "Executable path must point to an existing .exe file."
+        if not self.programs:
+            return False, "At least one program is required."
 
-        if working_directory and not os.path.isdir(working_directory):
-            return False, "Working directory must be an existing folder or left empty."
+        for index, program in enumerate(self.programs, start=1):
+            label = self._program_label(program, index)
+            executable_path = str(program.get("executable_path", "")).strip()
+            working_directory = str(program.get("working_directory", "")).strip()
+            display_id = str(program.get("display_id", "")).strip()
 
-        if selected_display not in self._display_id_by_label:
-            return False, "Please choose a valid target display."
+            if not executable_path:
+                return False, f"{label}: executable path is required."
+            if not is_valid_executable_path(executable_path):
+                return False, f"{label}: executable path must point to an existing .exe file."
+
+            if working_directory and not os.path.isdir(working_directory):
+                return False, f"{label}: working directory must be an existing folder or left empty."
+
+            if not display_id:
+                return False, f"{label}: please choose a valid target display."
 
         return True, ""
 
@@ -651,12 +922,7 @@ class PresetForm:
 
         preset_data = {
             "name": self.name_entry.get().strip(),
-            "executable_path": self.path_entry.get().strip(),
-            "launch_args": self.launch_args_entry.get().strip(),
-            "working_directory": self.working_dir_entry.get().strip(),
-            "window_title_hint": self.window_hint_entry.get().strip(),
-            "display_id": self._display_id_by_label[self.monitor_combo.get().strip()],
-            "display_name": self.monitor_combo.get().strip(),
+            "programs": [dict(program) for program in self.programs],
         }
 
         config = load_config()

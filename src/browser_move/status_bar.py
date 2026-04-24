@@ -16,7 +16,7 @@ class StatusBar(ctk.CTkFrame):
     """Compact status bar showing current state with a timestamp."""
 
     def __init__(self, master: ctk.CTk | ctk.CTkFrame, **kwargs):
-        super().__init__(master, height=52, **kwargs)
+        super().__init__(master, height=38, **kwargs)
         self.pack_propagate(False)
         self.configure(
             fg_color=SURFACE_ALT,
@@ -35,16 +35,16 @@ class StatusBar(ctk.CTkFrame):
         self.indicator = ctk.CTkLabel(
             self,
             text="",
-            width=12,
-            height=12,
-            corner_radius=6,
+            width=8,
+            height=8,
+            corner_radius=4,
         )
-        self.indicator.pack(side="left", padx=(16, 8))
+        self.indicator.pack(side="left", padx=(12, 8))
 
         self.status_label = ctk.CTkLabel(
             self,
             text="Ready",
-            font=font(12, "bold"),
+            font=font(11, "bold"),
             anchor="w",
         )
         self.status_label.pack(side="left", fill="both", expand=True)
@@ -56,7 +56,7 @@ class StatusBar(ctk.CTkFrame):
             text_color=TEXT_MUTED,
             anchor="e",
         )
-        self.time_label.pack(side="right", padx=(8, 16))
+        self.time_label.pack(side="right", padx=(8, 12))
 
     def set_status(self, status_type: StatusType, message: str) -> None:
         self._status_type = status_type
